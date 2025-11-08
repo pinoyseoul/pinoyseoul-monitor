@@ -155,6 +155,7 @@ You can trigger any check manually. This is great for testing or getting an inst
 
 Below is an example of the terminal output when running a manual check.
 ![Example of terminal output](docs/screenshots/terminal-output.png)
+</br>
 *Caption: Running a manual check provides immediate feedback on the console.*
 
 ```bash
