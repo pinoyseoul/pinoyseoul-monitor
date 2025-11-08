@@ -12,7 +12,7 @@ from utils.google_chat import send_azuracast_summary, send_alert
 
 log = logging.getLogger(__name__)
 
-def get_listener_summary(config: Dict[str, Any]) -> bool:
+def get_listener_summary(config: Dict[str, Any], evening_quote: str = None) -> bool:
     """
     Connects to the AzuraCast API, fetches the listener report for the day,
     and sends a formatted summary to Google Chat.
@@ -45,17 +45,18 @@ def get_listener_summary(config: Dict[str, Any]) -> bool:
         log.info(f"Successfully fetched daily unique listener count: {unique_listeners}")
         send_azuracast_summary(
             listeners_total=unique_listeners,
-            station_name=station_name
+            station_name=station_name,
+            quote=evening_quote
         )
         return True
 
     except requests.exceptions.RequestException as e:
         log.error(f"Failed to connect to AzuraCast API: {e}")
         send_alert(
-            message="Could not connect to the AzuraCast API to fetch the daily listener report.",
-            severity="critical",
-            title="Azuracast API Unreachable",
-            details=str(e)
+            message="The monitor could not connect to the radio server to get the daily listener report.",
+            severity="warning",
+            title="Could Not Fetch Listener Report",
+            details=f"This usually happens if the radio service is temporarily down or restarting. The error was: {str(e)}"
         )
         return False
     except Exception as e:

@@ -75,30 +75,30 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int], portainer_ur
                     if days_left < 0:
                         status_report['status'] = 'critical'
                         send_alert(
-                            message=f"The SSL certificate for {domain} EXPIRED {-days_left} days ago!",
+                            message=f"The security certificate for {domain} has EXPIRED.",
                             severity="critical",
-                            title="SSL Certificate EXPIRED",
-                            details="This site is now showing a security warning to all visitors. Immediate action required.",
+                            title="Website Security EXPIRED",
+                            details=f"Impact: Visitors will see a security warning and may not be able to access the site. This must be fixed immediately.",
                             portainer_url=portainer_url,
                             extra_buttons=nginx_button
                         )
                     elif days_left < critical_threshold:
                         status_report['status'] = 'critical'
                         send_alert(
-                            message=f"The SSL certificate for {domain} expires in just {days_left} days.",
+                            message=f"The security certificate for {domain} expires in just {days_left} days.",
                             severity="critical",
-                            title="CRITICAL: SSL Certificate Expiring Soon",
-                            details="Action needed: Renew certificate immediately or the site will show a security warning.",
+                            title=f"URGENT: Website Security for {domain} Expiring Soon",
+                            details="Action: The certificate must be renewed immediately to avoid security warnings for visitors.",
                             portainer_url=portainer_url,
                             extra_buttons=nginx_button
                         )
                     elif days_left < warning_threshold:
                         status_report['status'] = 'warning'
                         send_alert(
-                            message=f"The SSL certificate for {domain} expires in {days_left} days.",
+                            message=f"The security certificate for {domain} is due for renewal in {days_left} days.",
                             severity="warning",
-                            title="SSL Certificate Renewal Due",
-                            details="Schedule renewal in the next 2 weeks to avoid a last-minute rush.",
+                            title=f"Website Security Renewal Needed for {domain}",
+                            details="To avoid any service interruption, please schedule this for renewal soon.",
                             portainer_url=portainer_url,
                             extra_buttons=nginx_button
                         )
@@ -110,10 +110,10 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int], portainer_ur
             log.warning(f"Could not reach {domain} to check SSL: {e}")
             status_report['status'] = 'error'
             send_alert(
-                message=f"Could not connect to {domain} on port 443 to check its SSL certificate.",
+                message=f"Could not connect to the server for {domain} to check its security certificate.",
                 severity="warning",
-                title=f"Cannot Check SSL for {domain}",
-                details="This may indicate the site or service is down. Please verify.",
+                title=f"Cannot Check Security for {domain}",
+                details="What happened: The monitor couldn't reach this service. This might mean the service is down.",
                 portainer_url=portainer_url,
                 extra_buttons=nginx_button
             )
@@ -121,10 +121,10 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int], portainer_ur
             log.error(f"Invalid SSL certificate for {domain}: {e}")
             status_report['status'] = 'critical'
             send_alert(
-                message=f"The SSL certificate on {domain} is invalid (e.g., hostname mismatch).",
+                message=f"The security certificate for {domain} is invalid.",
                 severity="critical",
-                title=f"Invalid SSL Certificate on {domain}",
-                details="Visitors will see a security error. This needs to be fixed immediately.",
+                title=f"Invalid Security Certificate on {domain}",
+                details="Impact: Visitors will see a security error. This needs to be fixed immediately.",
                 portainer_url=portainer_url,
                 extra_buttons=nginx_button
             )
@@ -132,10 +132,10 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int], portainer_ur
             log.error(f"An unexpected error occurred while checking SSL for {domain}: {e}")
             status_report['status'] = 'error'
             send_alert(
-                message=f"An unexpected error occurred while checking SSL for {domain}.",
+                message=f"An unexpected technical problem occurred while checking the security for {domain}.",
                 severity="critical",
-                title="SSL Check Failed Unexpectedly",
-                details=f"Error details: {str(e)}",
+                title="Security Check Failed",
+                details=f"The technical team has been notified of the error: {str(e)}",
                 portainer_url=portainer_url,
                 extra_buttons=nginx_button
             )

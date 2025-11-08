@@ -70,6 +70,9 @@ Alerts are designed to be understood by everyone, not just technical users. They
 ### Daily Summary Reports
 Every morning, the service sends a single, clean summary report to Google Chat, confirming the status of all monitored systems. This "all-clear" signal is a great way to start the day with confidence.
 
+### Motivational Quotes
+To boost team morale, the monitor now includes a "Quote of the Day" in the morning summary and a "Quote of the Night" in the evening listener report. These Korean-themed proverbs focus on productivity and success, adding a nice touch of inspiration to the automated reports.
+
 ---
 
 ## 3. Tech Stack
@@ -283,7 +286,7 @@ pinoyseoul-monitor/
 ├── main.py              # The main entry point for the application.
 ├── README.md            # This file.
 ├── monitors/            # Contains all the individual checking logic.
-├── utils/               # Contains helper modules (alerts, logging).
+├── utils/               # Contains helper modules (alerts, logging, quotes).
 └── scripts/             # Contains shell scripts for setup and automation.
 ```
 

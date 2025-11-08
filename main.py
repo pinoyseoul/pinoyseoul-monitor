@@ -20,9 +20,10 @@ from dotenv import load_dotenv
 try:
     from utils.logger import setup_logging
     from utils.google_chat import send_daily_summary, test_webhook, send_alert
+    from utils.quotes import get_random_quote
     from monitors.docker_health import check_docker_health
     from monitors.ssl_check import check_ssl_certs
-    from monitors.backup_check import check_backup_health
+    from monitors.backup_check import check_backup_age
     from monitors.azuracast_check import get_listener_summary
 except ImportError as e:
     print(f"FATAL ERROR: A required module is missing: {e}", file=sys.stderr)
@@ -102,7 +103,7 @@ def run_summary(config: dict):
         portainer_url=portainer_url,
         nginx_proxy_manager_url=nginx_proxy_manager_url
     )
-    backup_results = check_backup_health(backup_config, portainer_url=portainer_url)
+    backup_results = check_backup_age(backup_config, portainer_url=portainer_url)
 
     # Format Docker status for summary
     docker_status = f"✅ {docker_results['running']}/{docker_results['total_containers']} containers running"
@@ -126,7 +127,10 @@ def run_summary(config: dict):
         "Wekan": "✅ Online", "DocuSeal": "✅ Online", "Dolibarr": "✅ Online",
     }
 
-    send_daily_summary(services_status, backup_status, ssl_status)
+    # Get a random morning quote
+    morning_quote = get_random_quote('morning')
+
+    send_daily_summary(services_status, backup_status, ssl_status, morning_quote)
     log.info("--- Daily Summary Sent ---")
 
 def run_checks(check_name: str, config: dict) -> bool:
@@ -174,7 +178,7 @@ def run_checks(check_name: str, config: dict) -> bool:
 
     if check_name in ['backup', 'all']:
         if config.get('backup', {}).get('enabled', False):
-            results = check_backup_health(config.get('backup', {}), portainer_url=portainer_url)
+            results = check_backup_age(config.get('backup', {}), portainer_url=portainer_url)
             if results['status'] != 'success':
                 overall_healthy = False
         else:
@@ -216,7 +220,9 @@ def main():
         log.info("Running AzuraCast listener summary...")
         azuracast_config = config.get('azuracast', {})
         if azuracast_config.get('enabled', False):
-            get_listener_summary(azuracast_config)
+            # Get a random evening quote
+            evening_quote = get_random_quote('evening')
+            get_listener_summary(azuracast_config, evening_quote)
         else:
             log.warning("Azuracast check skipped (disabled in config).")
         sys.exit(0)

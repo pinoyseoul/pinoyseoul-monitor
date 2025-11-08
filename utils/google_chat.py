@@ -80,9 +80,9 @@ def send_alert(message: str, severity: str = "info", title: Optional[str] = None
     log.info(f"Preparing alert with severity '{severity}': {title} - {message}")
 
     severity_styles = {
-        "critical": {"icon": "🔴", "color": "#FF0000", "header": "IMMEDIATE ATTENTION REQUIRED"},
-        "warning": {"icon": "🟡", "color": "#FFBF00", "header": "SYSTEM WARNING"},
-        "info": {"icon": "🟢", "color": "#36A64F", "header": "SYSTEM UPDATE"},
+        "critical": {"icon": "🔴", "color": "#FF0000", "header": "Critical Alert"},
+        "warning": {"icon": "🟡", "color": "#FFBF00", "header": "Service Warning"},
+        "info": {"icon": "🟢", "color": "#36A64F", "header": "System Information"},
     }
     style = severity_styles.get(severity, severity_styles["info"])
 
@@ -127,7 +127,7 @@ def send_alert(message: str, severity: str = "info", title: Optional[str] = None
 
     _send_card(card_payload)
 
-def send_daily_summary(services_status: Dict[str, str], backup_status: str, ssl_status: str):
+def send_daily_summary(services_status: Dict[str, str], backup_status: str, ssl_status: str, quote: Optional[str] = None):
     """
     Sends a structured daily summary report to Google Chat.
 
@@ -149,14 +149,21 @@ def send_daily_summary(services_status: Dict[str, str], backup_status: str, ssl_
     tools_status_text = "<br>".join(tools_status_lines)
 
     summary_text = (
-        f"✅ <b>All systems operational</b><br>"
-        f"Radio: {services_status.get('Radio', 'Unknown')}<br>"
-        f"Website: {services_status.get('Website', 'Unknown')}<br><br>"
+        f"<b>Good morning! Here is today's status summary:</b><br><br>"
+        f"<b>Key Services:</b><br>"
+        f"• Radio: {services_status.get('Radio', 'Unknown')}<br>"
+        f"• Website: {services_status.get('Website', 'Unknown')}<br><br>"
         f"<b>Team Tools:</b><br>{tools_status_text}<br><br>"
-        f"<b>Backups:</b> {backup_status}<br>"
-        f"<b>SSL Certs:</b> {ssl_status}<br><br>"
-        "<i>Have a productive day! 🚀</i>"
+        f"<b>Daily Checks:</b><br>"
+        f"• Backups: {backup_status}<br>"
+        f"• Website Security (SSL): {ssl_status}"
     )
+
+    # Add the quote of the day if provided
+    if quote:
+        summary_text += f"<br><br><i><b>Quote of the Day:</b> {quote}</i>"
+
+    summary_text += "<br><br><i>Have a productive day! 🚀</i>"
 
     card_payload = {
         "cardsV2": [{
@@ -175,7 +182,7 @@ def send_daily_summary(services_status: Dict[str, str], backup_status: str, ssl_
     }
     _send_card(card_payload)
 
-def send_azuracast_summary(listeners_total: int, station_name: str):
+def send_azuracast_summary(listeners_total: int, station_name: str, quote: Optional[str] = None):
     """
     Sends a dedicated daily listener report for AzuraCast.
 
@@ -189,9 +196,14 @@ def send_azuracast_summary(listeners_total: int, station_name: str):
     emoji = "📈"
 
     summary_text = (
-        f"Today, we had a total of **{listeners_total}** unique listeners tune in to the radio. "
-        "Great work, team!"
+        f"Good evening! Today, the radio station reached a total of "
+        f"<b>{listeners_total} unique listeners.</b><br><br>"
+        "Amazing work, everyone. Let's keep it up! 🎉"
     )
+
+    # Add the quote of the night if provided
+    if quote:
+        summary_text += f"<br><br><i><b>Quote of the Night:</b> {quote}</i>"
 
     card_payload = {
         "cardsV2": [{

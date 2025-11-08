@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Motivational Quotes:** The daily morning and evening summary reports now include a randomly selected, Korean-themed motivational quote to enhance team morale.
+  - A new `utils/quotes.py` module was created to store and manage 100 morning and 100 evening quotes.
+
+### Fixed
+- **Backup Monitor Compatibility:** The backup check (`monitors/backup_check.py`) was updated to use the `rclone lsjson` command, ensuring compatibility with older versions of rclone that do not support formatted output. This resolves a critical bug that prevented the backup check from running correctly.
+- **Configuration Clarity:** Removed duplicated `azuracast` sections from `config.example.yml` to prevent confusion and ensure a single source of truth for the configuration.
+
+---
+
 ## [1.1.0] - 2025-11-08
 
 ### Added

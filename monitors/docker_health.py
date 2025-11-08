@@ -53,16 +53,16 @@ def check_docker_health(name_map: Dict[str, str], portainer_url: str) -> Dict[st
     except docker.errors.DockerException as e:
         log.error(f"Could not connect to Docker daemon: {e}")
         if 'permission denied' in str(e).lower():
-            details = "Fix: Add the current user to the 'docker' group with 'sudo usermod -aG docker $USER' and then log out and back in."
-            send_alert("Docker Permission Denied", severity="critical", title="Docker Monitor Failed", details=details, extra_buttons=portainer_button)
+            details = "What happened: The script doesn't have permission to communicate with the Docker service. The technical team needs to add the 'pinoyseoul' user to the 'docker' group on the server."
+            send_alert("Can't Access Docker", severity="critical", title="Monitor Error: Permission Denied", details=details, extra_buttons=portainer_button)
         else:
-            send_alert("Docker Daemon Unreachable", severity="critical", title="Docker Monitor Failed", details="The monitoring script could not connect to the Docker service.", extra_buttons=portainer_button)
+            send_alert("Can't Reach Docker", severity="critical", title="Monitor Error: Docker Unavailable", details="What happened: The monitoring script could not connect to the Docker service. This might mean Docker has stopped running on the server.", extra_buttons=portainer_button)
         summary['status'] = 'critical'
         return summary
     
     if not containers:
         log.warning("No Docker containers found on this system.")
-        send_alert("No Containers Found", severity="warning", title="Docker Monitor Anomaly", details="The script ran successfully but did not find any containers to monitor.", extra_buttons=portainer_button)
+        send_alert("No Services Found to Monitor", severity="warning", title="Docker Check Anomaly", details="What happened: The monitor is running correctly, but it didn't find any Docker services (containers) to check. This is unusual and might be worth investigating.", extra_buttons=portainer_button)
         summary['status'] = 'warning'
         return summary
 
@@ -88,10 +88,10 @@ def check_docker_health(name_map: Dict[str, str], portainer_url: str) -> Dict[st
                     if datetime.now(timezone.utc) - started_at < timedelta(minutes=5):
                         log.warning(f"Container '{name}' has restarted recently.")
                         send_alert(
-                            message=f"The {friendly_name} service just restarted but is now running.",
+                            message=f"The {friendly_name} service just restarted.",
                             severity="warning",
-                            title=f"{friendly_name} Restarted",
-                            details="Now running normally. Monitoring for further issues. No action needed at this time.",
+                            title=f"{friendly_name} Service Restarted",
+                            details="What's happening: The service recovered after a quick restart. We're monitoring it to ensure it remains stable. No action is needed right now.",
                             extra_buttons=portainer_button
                         )
                         summary['issues'].append(name)
@@ -107,7 +107,7 @@ def check_docker_health(name_map: Dict[str, str], portainer_url: str) -> Dict[st
                 message=f"The {friendly_name} service is offline.",
                 severity="critical",
                 title=f"{friendly_name} Service Down",
-                details=f"Impact: This service is unavailable. Nash has been notified.",
+                details=f"Impact: This service is completely unavailable. The technical team has been notified to investigate immediately.",
                 extra_buttons=portainer_button
             )
             summary['issues'].append(name)
@@ -117,10 +117,10 @@ def check_docker_health(name_map: Dict[str, str], portainer_url: str) -> Dict[st
             summary['stopped'] += 1 # It's not in a healthy 'running' state
             log.critical(f"Container '{name}' is in a restart loop.")
             send_alert(
-                message=f"The {friendly_name} service is caught in a restart loop.",
+                message=f"The {friendly_name} service is unstable and repeatedly crashing.",
                 severity="critical",
                 title=f"{friendly_name} Service Unstable",
-                details=f"Impact: The service is repeatedly crashing. This requires immediate investigation. Nash has been notified.",
+                details=f"Impact: The service cannot start correctly. This requires immediate investigation by the technical team.",
                 extra_buttons=portainer_button
             )
             summary['issues'].append(name)

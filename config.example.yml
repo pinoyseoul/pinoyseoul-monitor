@@ -88,35 +88,6 @@ azuracast:
   enabled: true
   # The base URL for your AzuraCast API (e.g., https://radio.pinoyseoul.com/api)
   api_base_url: "https://radio.pinoyseoul.com/api"
-  # Your AzuraCast API Key (generated in AzuraCast admin panel -> My Account -> API Keys)
-  # The value "${...}" will be loaded from the corresponding environment variable.
-  api_key: "${AZURACAST_API_KEY}"
-  # The unique identifier (shortcode) of the station you want to monitor.
-  station_id: "radio"
-  # Enable/disable the 'New Listener' alert.
-  new_listener_alert_enabled: true
-
-# -----------------------------------------------------------------------------
-# AzuraCast Monitoring
-# -----------------------------------------------------------------------------
-azuracast:
-  enabled: true
-  # The base URL for your AzuraCast API (e.g., https://radio.pinoyseoul.com/api)
-  api_base_url: "https://radio.pinoyseoul.com/api"
-  # Your AzuraCast API Key (loaded from .env)
-  api_key: "${AZURACAST_API_KEY}"
-  # The unique identifier (shortcode) of the station to monitor.
-  station_id: "radio"
-  # The time to send the daily listener summary report (24-hour format).
-  daily_summary_time: "20:00"
-
-# -----------------------------------------------------------------------------
-# AzuraCast Monitoring
-# -----------------------------------------------------------------------------
-azuracast:
-  enabled: true
-  # The base URL for your AzuraCast API (e.g., https://radio.pinoyseoul.com/api)
-  api_base_url: "https://radio.pinoyseoul.com/api"
   # Your AzuraCast API Key (loaded from .env)
   api_key: "${AZURACAST_API_KEY}"
   # The unique identifier (ID) of the station to monitor.
