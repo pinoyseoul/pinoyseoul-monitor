@@ -17,17 +17,20 @@ This project, developed by Nash Ang for PinoySeoul Media Enterprise, is a robust
 *Caption: An example of a critical alert sent to Google Chat, showing immediate notification of a service outage.*
 
 ## Quick Links
-- [Documentation](#documentation)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Configuration Guide](#configuration-guide)
-- [Setting Up Automation (Cron)](#setting-up-automation-cron)
-- [Alert Showcase](#alert-showcase)
-- [Troubleshooting](#troubleshooting)
-- [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
-- [Author & Acknowledgments](#author--acknowledgments)
+- [Project Overview](#1-project-overview)
+- [Features & Capabilities](#2-features--capabilities)
+- [Tech Stack](#3-tech-stack)
+- [Prerequisites](#4-prerequisites)
+- [Installation](#5-installation)
+- [Configuration Guide](#6-configuration-guide)
+- [Usage](#7-usage)
+- [Setting up Automation (Cron)](#8-setting-up-automation-cron)
+- [Alert Showcase](#9-alert-showcase)
+- [Troubleshooting](#10-troubleshooting)
+- [Project Structure](#11-project-structure)
+- [Contributing](#12-contributing)
+- [License](#13-license)
+- [Author & Acknowledgments](#14-author--acknowledgments)
 
 ---
 
@@ -101,12 +104,15 @@ cd pinoyseoul-monitor
 ### Step 2: Run the Setup Script
 The `setup.sh` script will prepare everything for you.
 
-![Running the setup process](https://placehold.co/800x400.gif?text=Animated+GIF+of+Setup+Script)
-*Caption: The interactive setup script guides you through the installation.*
-
 ```bash
 bash scripts/setup.sh
 ```
+This script will:
+1. Check for Python.
+2. Create a local Python virtual environment (`.venv/`).
+3. Install all required packages from `requirements.txt`.
+4. Create your `config.yml` and `.env` files from the examples.
+5. Prompt you to edit your configuration.
 
 ### Step 3: Configure Your Settings
 The setup script will pause and ask you to edit two files:
@@ -146,22 +152,40 @@ All commands should be run from the project's root directory with the virtual en
 ### Running Manual Checks
 You can trigger any check manually. This is great for testing or getting an instant status update.
 
+Below is an example of the terminal output when running a manual check.
 ![Example of terminal output](docs/screenshots/terminal-output.png)
 *Caption: Running a manual check provides immediate feedback on the console.*
 
 ```bash
 # Check the status of all Docker containers
 python main.py --check docker
+
+# Check the status of all SSL certificates
+python main.py --check ssl
+
+# Check the status of the last backup
+python main.py --check backup
+
+# Run all checks at once
+python main.py --check all
+```
+
+### Sending a Daily Summary
+To manually trigger the daily summary report:
+```bash
+python main.py --summary
 ```
 
 ### Testing the Webhook
 This command sends a simple test message to your configured webhook.
-
-![Sending a test alert](https://placehold.co/800x400.gif?text=Animated+GIF+of+Test+Alert)
-*Caption: The test command immediately sends a confirmation to Google Chat.*
-
 ```bash
 python main.py --test
+```
+
+### Reading Logs
+The application's own logs are stored in the directory specified in `config.yml` (default: `./logs/monitor.log`). You can view them with:
+```bash
+tail -f logs/monitor.log
 ```
 
 ---
@@ -186,6 +210,9 @@ To make the monitor truly automated, schedule the scripts to run using `cron`.
 # Check SSL certificates once a day at 8:00 AM.
 0 8 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_checks.sh ssl >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
 
+# Check backup status once a day at 8:05 AM (after the backup has run).
+5 8 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_checks.sh backup >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+
 # Send the daily summary report every day at 9:00 AM.
 0 9 * * * /home/pinoyseoul/pinoyseoul-monitor/.venv/bin/python /home/pinoyseoul/pinoyseoul-monitor/main.py --summary >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
 ```
@@ -196,15 +223,19 @@ To make the monitor truly automated, schedule the scripts to run using `cron`.
 
 Below are examples of what the alerts look like in Google Chat.
 
+### Critical Alert
 ![Critical Alert Example](docs/screenshots/critical-alert.png)
 *Caption: A CRITICAL alert is sent in red for immediate attention when a service is down.*
 
+### Warning Alert
 ![Warning Alert Example](docs/screenshots/warning-alert.png)
 *Caption: A WARNING alert is sent in yellow for issues that need attention but are not critical.*
 
+### Info Alert
 ![Info Alert Example](docs/screenshots/info-alert.png)
 *Caption: An INFO alert is sent in green for successful, non-critical events.*
 
+### Daily Summary
 ![Daily Summary Example](docs/screenshots/daily-summary.png)
 *Caption: The daily summary provides a clean, "all-clear" status report.*
 
@@ -217,6 +248,13 @@ Below are examples of what the alerts look like in Google Chat.
 
 - **Issue:** `docker` command fails with "permission denied".
   - **Solution:** The user running the script is not in the `docker` group. Run `sudo usermod -aG docker $USER`, then **log out and log back in**.
+
+- **Issue:** SSL checks are failing for a valid site.
+  - **Solution:** Your server may be having DNS resolution issues or is being blocked by a firewall from reaching the domain. Try to `curl https://thedomain.com` from the server to see the error.
+
+- **Where to find logs?**
+  - **This application's logs:** Check the `log_dir` specified in `config.yml` (default is `./logs/monitor.log`).
+  - **Cron job logs:** Check the file you are redirecting output to in your `crontab` entry (e.g., `./logs/cron.log`).
 
 ---
 
@@ -247,6 +285,6 @@ This project is licensed under the **MIT License**.
 
 ## 14. Author & Acknowledgments
 
-- **Author:** [Your Name]
+- **Author:** Nash Ang
 - **Portfolio:** [Link to Your Portfolio Website]
 - **Acknowledgments:** This project was built to support the [PinoySeoul Media Enterprise](https://pinoyseoul.com).
