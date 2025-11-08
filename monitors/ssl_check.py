@@ -28,7 +28,7 @@ def _get_issuer_cn(issuer_tuple: tuple) -> str:
     return "Unknown Issuer"
 
 
-def check_ssl_certs(domains: List[str], alert_days: Dict[str, int]) -> List[Dict[str, Any]]:
+def check_ssl_certs(domains: List[str], alert_days: Dict[str, int], portainer_url: str, nginx_proxy_manager_url: str) -> List[Dict[str, Any]]:
     """
     Connects to a list of domains, checks their SSL certificates, sends
     alerts for issues, and returns a detailed status for each.
@@ -47,6 +47,8 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int]) -> List[Dict
     # Get thresholds from config, with sensible defaults
     critical_threshold = alert_days.get('critical', 7)
     warning_threshold = alert_days.get('warning', 30)
+
+    nginx_button = [{"text": "View in Nginx", "url": nginx_proxy_manager_url}]
 
     for domain in domains:
         status_report = {
@@ -76,7 +78,9 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int]) -> List[Dict
                             message=f"The SSL certificate for {domain} EXPIRED {-days_left} days ago!",
                             severity="critical",
                             title="SSL Certificate EXPIRED",
-                            details="This site is now showing a security warning to all visitors. Immediate action required."
+                            details="This site is now showing a security warning to all visitors. Immediate action required.",
+                            portainer_url=portainer_url,
+                            extra_buttons=nginx_button
                         )
                     elif days_left < critical_threshold:
                         status_report['status'] = 'critical'
@@ -84,7 +88,9 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int]) -> List[Dict
                             message=f"The SSL certificate for {domain} expires in just {days_left} days.",
                             severity="critical",
                             title="CRITICAL: SSL Certificate Expiring Soon",
-                            details="Action needed: Renew certificate immediately or the site will show a security warning."
+                            details="Action needed: Renew certificate immediately or the site will show a security warning.",
+                            portainer_url=portainer_url,
+                            extra_buttons=nginx_button
                         )
                     elif days_left < warning_threshold:
                         status_report['status'] = 'warning'
@@ -92,7 +98,9 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int]) -> List[Dict
                             message=f"The SSL certificate for {domain} expires in {days_left} days.",
                             severity="warning",
                             title="SSL Certificate Renewal Due",
-                            details="Schedule renewal in the next 2 weeks to avoid a last-minute rush."
+                            details="Schedule renewal in the next 2 weeks to avoid a last-minute rush.",
+                            portainer_url=portainer_url,
+                            extra_buttons=nginx_button
                         )
                     else:
                         status_report['status'] = 'valid'
@@ -105,7 +113,9 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int]) -> List[Dict
                 message=f"Could not connect to {domain} on port 443 to check its SSL certificate.",
                 severity="warning",
                 title=f"Cannot Check SSL for {domain}",
-                details="This may indicate the site or service is down. Please verify."
+                details="This may indicate the site or service is down. Please verify.",
+                portainer_url=portainer_url,
+                extra_buttons=nginx_button
             )
         except ssl.SSLCertVerificationError as e:
             log.error(f"Invalid SSL certificate for {domain}: {e}")
@@ -114,7 +124,9 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int]) -> List[Dict
                 message=f"The SSL certificate on {domain} is invalid (e.g., hostname mismatch).",
                 severity="critical",
                 title=f"Invalid SSL Certificate on {domain}",
-                details="Visitors will see a security error. This needs to be fixed immediately."
+                details="Visitors will see a security error. This needs to be fixed immediately.",
+                portainer_url=portainer_url,
+                extra_buttons=nginx_button
             )
         except Exception as e:
             log.error(f"An unexpected error occurred while checking SSL for {domain}: {e}")
@@ -123,7 +135,9 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int]) -> List[Dict
                 message=f"An unexpected error occurred while checking SSL for {domain}.",
                 severity="critical",
                 title="SSL Check Failed Unexpectedly",
-                details=f"Error details: {str(e)}"
+                details=f"Error details: {str(e)}",
+                portainer_url=portainer_url,
+                extra_buttons=nginx_button
             )
         
         results.append(status_report)

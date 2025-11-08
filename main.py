@@ -87,14 +87,21 @@ def run_summary(config: dict):
     docker_config = config.get('docker', {})
     ssl_config = config.get('ssl', {})
     backup_config = config.get('backup', {})
+    portainer_url = config.get('portainer', {}).get('url')
+    nginx_proxy_manager_url = config.get('nginx_proxy_manager', {}).get('url')
 
     # Run all checks and collect results
-    docker_results = check_docker_health(name_map=docker_config.get('container_name_mapping', {}))
+    docker_results = check_docker_health(
+        name_map=docker_config.get('container_name_mapping', {}),
+        portainer_url=portainer_url
+    )
     ssl_results = check_ssl_certs(
         domains=ssl_config.get('domains', []),
-        alert_days=ssl_config.get('alert_days', {})
+        alert_days=ssl_config.get('alert_days', {}),
+        portainer_url=portainer_url,
+        nginx_proxy_manager_url=nginx_proxy_manager_url
     )
-    backup_results = check_backup_health(backup_config)
+    backup_results = check_backup_health(backup_config, portainer_url=portainer_url)
 
     # Format Docker status for summary
     docker_status = f"✅ {docker_results['running']}/{docker_results['total_containers']} containers running"
@@ -135,10 +142,16 @@ def run_checks(check_name: str, config: dict) -> bool:
     log.info(f"--- Running Check: {check_name.upper()} ---")
     overall_healthy = True
 
+    portainer_url = config.get('portainer', {}).get('url')
+    nginx_proxy_manager_url = config.get('nginx_proxy_manager', {}).get('url')
+
     if check_name in ['docker', 'all']:
         docker_config = config.get('docker', {})
         if docker_config.get('enabled', False):
-            results = check_docker_health(name_map=docker_config.get('container_name_mapping', {}))
+            results = check_docker_health(
+                name_map=docker_config.get('container_name_mapping', {}),
+                portainer_url=portainer_url
+            )
             if results['status'] != 'healthy':
                 overall_healthy = False
         else:
@@ -149,7 +162,9 @@ def run_checks(check_name: str, config: dict) -> bool:
         if ssl_config.get('enabled', False):
             results = check_ssl_certs(
                 domains=ssl_config.get('domains', []),
-                alert_days=ssl_config.get('alert_days', {})
+                alert_days=ssl_config.get('alert_days', {}),
+                portainer_url=portainer_url,
+                nginx_proxy_manager_url=nginx_proxy_manager_url
             )
             if any(r['status'] != 'valid' for r in results):
                 overall_healthy = False
@@ -158,7 +173,7 @@ def run_checks(check_name: str, config: dict) -> bool:
 
     if check_name in ['backup', 'all']:
         if config.get('backup', {}).get('enabled', False):
-            results = check_backup_health(config.get('backup', {}))
+            results = check_backup_health(config.get('backup', {}), portainer_url=portainer_url)
             if results['status'] != 'success':
                 overall_healthy = False
         else:

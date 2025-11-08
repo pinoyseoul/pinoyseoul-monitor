@@ -20,7 +20,7 @@ load_dotenv()
 log = logging.getLogger(__name__)
 
 # Get Portainer URL from environment variable, with a fallback for safety
-PORTAINER_URL = os.getenv("PORTAINER_URL", "http://localhost:9000")
+# PORTAINER_URL = os.getenv("PORTAINER_URL", "http://localhost:9000") # This is no longer needed as URL is passed dynamically
 
 # --- Private Helper Functions ---
 
@@ -65,7 +65,7 @@ def _send_card(card_payload: Dict[str, Any]) -> bool:
 
 # --- Public API Functions ---
 
-def send_alert(message: str, severity: str = "info", title: Optional[str] = None, details: Optional[str] = None):
+def send_alert(message: str, severity: str = "info", title: Optional[str] = None, details: Optional[str] = None, portainer_url: Optional[str] = None, extra_buttons: Optional[List[Dict[str, str]]] = None):
     """
     Sends a severity-based alert to Google Chat.
 
@@ -99,19 +99,21 @@ def send_alert(message: str, severity: str = "info", title: Optional[str] = None
 
     # Add timestamp and action button
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
+    
+    buttons = []
+    if extra_buttons:
+        for button in extra_buttons:
+            buttons.append({
+                "text": button.get("text", "More Info"),
+                "onClick": {"openLink": {"url": button.get("url")}}
+            })
+
     widgets.extend([
         {"textParagraph": {"text": f"<i><font color='#7F7F7F'>Timestamp: {timestamp}</font></i>"}},
-        {
-            "buttonList": {
-                "buttons": [
-                    {
-                        "text": "View in Portainer",
-                        "onClick": {"openLink": {"url": PORTAINER_URL}}
-                    }
-                ]
-            }
-        }
     ])
+
+    if buttons:
+        widgets.append({"buttonList": {"buttons": buttons}})
 
     card_payload = {
         "cardsV2": [{
@@ -182,7 +184,7 @@ def test_webhook():
         "cardsV2": [{
             "cardId": "test-card",
             "card": {
-                "header": {"title": "Webhook Test Successful!"},
+                "header": {"title": "✅ Webhook Test Successful!"},
                 "sections": [{
                     "widgets": [{
                         "textParagraph": {

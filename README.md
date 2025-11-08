@@ -14,6 +14,7 @@
 This project, developed by Nash Ang for PinoySeoul Media Enterprise, is a robust, self-hosted monitoring and alerting service. It proactively keeps an eye on critical services like Docker containers, SSL certificates, and daily backups, instantly notifying your team via Google Chat when issues arise. Designed for reliability and ease of use, it ensures your digital infrastructure runs smoothly, empowering cultural exchange through 24/7 streaming, creator partnerships, and AI-powered content.
 
 ![Critical Alert Example](docs/screenshots/critical-alert.png)
+</br>
 *Caption: An example of a critical alert sent to Google Chat, showing immediate notification of a service outage.*
 
 ## Quick Links
@@ -154,6 +155,7 @@ You can trigger any check manually. This is great for testing or getting an inst
 
 Below is an example of the terminal output when running a manual check.
 ![Example of terminal output](docs/screenshots/terminal-output.png)
+</br>
 *Caption: Running a manual check provides immediate feedback on the console.*
 
 ```bash
@@ -225,18 +227,22 @@ Below are examples of what the alerts look like in Google Chat.
 
 ### Critical Alert
 ![Critical Alert Example](docs/screenshots/critical-alert.png)
+</br>
 *Caption: A CRITICAL alert is sent in red for immediate attention when a service is down.*
 
 ### Warning Alert
 ![Warning Alert Example](docs/screenshots/warning-alert.png)
+</br>
 *Caption: A WARNING alert is sent in yellow for issues that need attention but are not critical.*
 
 ### Info Alert
 ![Info Alert Example](docs/screenshots/info-alert.png)
+</br>
 *Caption: An INFO alert is sent in green for successful, non-critical events.*
 
 ### Daily Summary
 ![Daily Summary Example](docs/screenshots/daily-summary.png)
+</br>
 *Caption: The daily summary provides a clean, "all-clear" status report.*
 
 ---
@@ -286,5 +292,5 @@ This project is licensed under the **MIT License**.
 ## 14. Author & Acknowledgments
 
 - **Author:** Nash Ang
-- **Portfolio:** [Link to Your Portfolio Website]
+- **Portfolio:** https://subtleazn.github.io
 - **Acknowledgments:** This project was built to support the [PinoySeoul Media Enterprise](https://pinoyseoul.com).

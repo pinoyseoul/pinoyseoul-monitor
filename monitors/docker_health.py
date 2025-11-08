@@ -15,9 +15,9 @@ from utils.google_chat import send_alert
 # Set up a logger for this module
 log = logging.getLogger(__name__)
 
-# --- Main Function ---
+    # --- Main Function ---
 
-def check_docker_health(name_map: Dict[str, str]) -> Dict[str, Any]:
+def check_docker_health(name_map: Dict[str, str], portainer_url: str) -> Dict[str, Any]:
     """
     Connects to Docker, checks all containers, sends alerts for issues,
     and returns a summary of the system's state.
@@ -45,7 +45,7 @@ def check_docker_health(name_map: Dict[str, str]) -> Dict[str, Any]:
         'issues': [],
         'status': 'healthy' # Can become 'warning' or 'critical'
     }
-
+    portainer_button = [{"text": "View in Portainer", "url": portainer_url}]
     try:
         client = docker.from_env(timeout=10)
         client.ping()
@@ -54,15 +54,15 @@ def check_docker_health(name_map: Dict[str, str]) -> Dict[str, Any]:
         log.error(f"Could not connect to Docker daemon: {e}")
         if 'permission denied' in str(e).lower():
             details = "Fix: Add the current user to the 'docker' group with 'sudo usermod -aG docker $USER' and then log out and back in."
-            send_alert("Docker Permission Denied", severity="critical", title="Docker Monitor Failed", details=details)
+            send_alert("Docker Permission Denied", severity="critical", title="Docker Monitor Failed", details=details, extra_buttons=portainer_button)
         else:
-            send_alert("Docker Daemon Unreachable", severity="critical", title="Docker Monitor Failed", details="The monitoring script could not connect to the Docker service.")
+            send_alert("Docker Daemon Unreachable", severity="critical", title="Docker Monitor Failed", details="The monitoring script could not connect to the Docker service.", extra_buttons=portainer_button)
         summary['status'] = 'critical'
         return summary
     
     if not containers:
         log.warning("No Docker containers found on this system.")
-        send_alert("No Containers Found", severity="warning", title="Docker Monitor Anomaly", details="The script ran successfully but did not find any containers to monitor.")
+        send_alert("No Containers Found", severity="warning", title="Docker Monitor Anomaly", details="The script ran successfully but did not find any containers to monitor.", extra_buttons=portainer_button)
         summary['status'] = 'warning'
         return summary
 
@@ -91,7 +91,8 @@ def check_docker_health(name_map: Dict[str, str]) -> Dict[str, Any]:
                             message=f"The {friendly_name} service just restarted but is now running.",
                             severity="warning",
                             title=f"{friendly_name} Restarted",
-                            details="Now running normally. Monitoring for further issues. No action needed at this time."
+                            details="Now running normally. Monitoring for further issues. No action needed at this time.",
+                            extra_buttons=portainer_button
                         )
                         summary['issues'].append(name)
                         if summary['status'] != 'critical':
@@ -106,7 +107,8 @@ def check_docker_health(name_map: Dict[str, str]) -> Dict[str, Any]:
                 message=f"The {friendly_name} service is offline.",
                 severity="critical",
                 title=f"{friendly_name} Service Down",
-                details=f"Impact: This service is unavailable. Nash has been notified."
+                details=f"Impact: This service is unavailable. Nash has been notified.",
+                extra_buttons=portainer_button
             )
             summary['issues'].append(name)
             summary['status'] = 'critical'
@@ -118,7 +120,8 @@ def check_docker_health(name_map: Dict[str, str]) -> Dict[str, Any]:
                 message=f"The {friendly_name} service is caught in a restart loop.",
                 severity="critical",
                 title=f"{friendly_name} Service Unstable",
-                details=f"Impact: The service is repeatedly crashing. This requires immediate investigation. Nash has been notified."
+                details=f"Impact: The service is repeatedly crashing. This requires immediate investigation. Nash has been notified.",
+                extra_buttons=portainer_button
             )
             summary['issues'].append(name)
             summary['status'] = 'critical'

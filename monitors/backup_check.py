@@ -99,7 +99,7 @@ def _parse_rclone_log(log_path: str, max_age_hours: int) -> Optional[Dict[str, A
     }
 
 
-def check_backup_health(config: Dict[str, Any]) -> Dict[str, Any]:
+def check_backup_health(config: Dict[str, Any], portainer_url: str) -> Dict[str, Any]:
     """
     Performs a multi-layered check on the latest rclone backup by parsing logs.
     """
@@ -115,7 +115,7 @@ def check_backup_health(config: Dict[str, Any]) -> Dict[str, Any]:
     if not log_path or not os.path.exists(log_path):
         msg = f"Rclone log file not found at '{log_path}'."
         log.error(msg)
-        send_alert("Backup Log Missing", severity="critical", title="Backup Check Failed", details=msg)
+        send_alert("Backup Log Missing", severity="critical", title="Backup Check Failed", details=msg, portainer_url=portainer_url)
         result['message'] = msg
         return result
 
@@ -125,7 +125,7 @@ def check_backup_health(config: Dict[str, Any]) -> Dict[str, Any]:
         msg = f"No valid backup summary found in the last {max_age_hours} hours."
         log.critical(msg)
         send_alert("Backup Failed", severity="critical", title="Backup Check Failed",
-                   details="Last night's backup may not have completed. Nash investigating.")
+                   details="Last night's backup may not have completed. Nash investigating.", portainer_url=portainer_url)
         result.update({'message': msg, 'status': 'failed'})
         return result
 
@@ -139,13 +139,13 @@ def check_backup_health(config: Dict[str, Any]) -> Dict[str, Any]:
         result['message'] = f"Backup completed with {parsed_data['errors']} errors."
         log.critical(result['message'])
         send_alert("Backup Failed", severity="critical", title="Backup Completed with Errors",
-                   details=f"{result['message']} Nash investigating.")
+                   details=f"{result['message']} Nash investigating.", portainer_url=portainer_url)
     elif parsed_data['size_mb'] < min_size_mb:
         result['status'] = 'failed'
         result['message'] = f"Backup size {parsed_data['size_mb']} MB is below threshold of {min_size_mb} MB."
         log.critical(result['message'])
         send_alert("Backup Failed", severity="critical", title="Backup Size Anomaly",
-                   details=f"{result['message']} This may indicate an incomplete backup. Nash investigating.")
+                   details=f"{result['message']} This may indicate an incomplete backup. Nash investigating.", portainer_url=portainer_url)
     else:
         result['status'] = 'success'
         result['message'] = f"Backup completed successfully at {parsed_data['log_time'].strftime('%Y-%m-%d %H:%M')}. Size: {parsed_data['size_mb']} MB."

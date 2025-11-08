@@ -82,6 +82,14 @@ backup:
   max_age_hours: 25
 
 # -----------------------------------------------------------------------------
+# Nginx Proxy Manager Integration
+# -----------------------------------------------------------------------------
+nginx_proxy_manager:
+  # The public URL for your Nginx Proxy Manager instance.
+  # This will be used for a button in SSL expiry alerts.
+  url: "https://proxy.pinoyseoul.com:81"
+
+# -----------------------------------------------------------------------------
 # Portainer Integration
 # -----------------------------------------------------------------------------
 portainer:
