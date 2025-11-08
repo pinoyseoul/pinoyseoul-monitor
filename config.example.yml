@@ -95,7 +95,7 @@ azuracast:
   # The user-friendly name of your station for alerts.
   station_name: "Pinoy Seoul Radio"
   # The time to send the daily listener summary report (24-hour format).
-  daily_summary_time: "20:00"
+  daily_summary_time: "21:00"
 
 # -----------------------------------------------------------------------------
 # Nginx Proxy Manager Integration

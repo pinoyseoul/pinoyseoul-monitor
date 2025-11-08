@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backup Monitor Compatibility:** The backup check (`monitors/backup_check.py`) was updated to use the `rclone lsjson` command, ensuring compatibility with older versions of rclone that do not support formatted output. This resolves a critical bug that prevented the backup check from running correctly.
 - **Configuration Clarity:** Removed duplicated `azuracast` sections from `config.example.yml` to prevent confusion and ensure a single source of truth for the configuration.
 
+### Changed
+- **AzuraCast Daily Summary Time:** Updated the `daily_summary_time` in `config.example.yml` for the AzuraCast listener report from 8 PM (20:00) to 9 PM (21:00) to align with other daily summary schedules.
+
 ---
 
 ## [1.1.0] - 2025-11-08
