@@ -73,6 +73,11 @@ nano .env
 
 You will see one line. Replace `your_webhook_url_here` with the actual webhook URL you generated from Google Chat.
 
+You will also need to add a line for your AzuraCast API key:
+```
+AZURACAST_API_KEY=your_azuracast_api_key_here
+```
+
 > [TODO: Add screenshot of a configured .env file]
 
 ### 3.2 - Configure `config.yml` (Settings)
@@ -87,6 +92,7 @@ Review every section to ensure it matches your environment:
 - **`backup.log_path`**: Double-check that this is the correct absolute path to the `rclone` log file created by your `backup.sh` script.
 - **`backup.min_size_mb`**: Adjust this value to a reasonable minimum size for your backups. If your daily backup is usually 2.5 GB, a good minimum might be `1500` (1.5 GB).
 - **`portainer.url`**: Make sure this is the correct public URL for your Portainer instance.
+- **`azuracast`**: Configure the settings for the daily listener report, including the `api_base_url`, `station_id`, and `station_name`.
 
 > [TODO: Add screenshot of a configured config.yml file]
 

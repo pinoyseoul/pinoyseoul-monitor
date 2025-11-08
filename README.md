@@ -61,6 +61,9 @@ It automatically checks the SSL certificates for all your public-facing domains.
 ### Backup Verification
 Instead of just hoping your backups worked, this monitor parses your `rclone` log files to verify that the backup process completed successfully, had no errors, and produced a file of a reasonable size. This provides true confirmation that your data is safe.
 
+### AzuraCast Daily Listener Report
+Connects to your AzuraCast radio station's API to fetch and report the total number of unique listeners for the day, sending a motivational summary to your team each evening.
+
 ### User-Friendly Google Chat Alerts
 Alerts are designed to be understood by everyone, not just technical users. They clearly state the problem, the business impact, and who is handling it, turning cryptic errors into actionable information.
 
@@ -178,6 +181,12 @@ To manually trigger the daily summary report:
 python main.py --summary
 ```
 
+### Sending the Listener Report
+To manually trigger the AzuraCast daily listener report:
+```bash
+python main.py --listener-summary
+```
+
 ### Testing the Webhook
 This command sends a simple test message to your configured webhook.
 ```bash
@@ -214,6 +223,9 @@ To make the monitor truly automated, schedule the scripts to run using `cron`.
 
 # Check backup status once a day at 8:05 AM (after the backup has run).
 5 8 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_checks.sh backup >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+
+# Send the daily listener summary report every day at 8:00 PM (20:00).
+0 20 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_checks.sh listener_summary >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
 
 # Send the daily summary report every day at 9:00 AM.
 0 9 * * * /home/pinoyseoul/pinoyseoul-monitor/.venv/bin/python /home/pinoyseoul/pinoyseoul-monitor/main.py --summary >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1

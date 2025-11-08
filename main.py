@@ -23,6 +23,7 @@ try:
     from monitors.docker_health import check_docker_health
     from monitors.ssl_check import check_ssl_certs
     from monitors.backup_check import check_backup_health
+    from monitors.azuracast_check import get_listener_summary
 except ImportError as e:
     print(f"FATAL ERROR: A required module is missing: {e}", file=sys.stderr)
     print("Please run 'bash scripts/setup.sh' to install dependencies.", file=sys.stderr)
@@ -190,6 +191,7 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--check', choices=['docker', 'ssl', 'backup', 'all'], help="Run a specific health check.")
     group.add_argument('--summary', action='store_true', help="Run all checks and send the daily summary report.")
+    group.add_argument('--listener-summary', action='store_true', help="Send the AzuraCast daily listener summary.")
     group.add_argument('--test', action='store_true', help="Send a test alert to the configured webhook.")
     
     args = parser.parse_args()
@@ -208,6 +210,15 @@ def main():
         log.info("Running webhook test...")
         test_webhook()
         print("Test alert sent. Please check your Google Chat room.")
+        sys.exit(0)
+
+    if args.listener_summary:
+        log.info("Running AzuraCast listener summary...")
+        azuracast_config = config.get('azuracast', {})
+        if azuracast_config.get('enabled', False):
+            get_listener_summary(azuracast_config)
+        else:
+            log.warning("Azuracast check skipped (disabled in config).")
         sys.exit(0)
 
     if args.summary:

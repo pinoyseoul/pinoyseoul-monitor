@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [1.1.0] - 2025-11-08
 
 ### Added
-- TBD
+- **AzuraCast Daily Listener Summary:** Added `monitors/azuracast_check.py` to connect to the AzuraCast API and send a daily report of the total unique listeners for the day.
+- Added a new `--listener-summary` command to `main.py` to trigger the report.
+- Added a new `azuracast` section to `config.yml` and `AZURACAST_API_KEY` to `.env`.
 
 ### Changed
-- TBD
+- Updated `utils/google_chat.py` with a new `send_azuracast_summary` function for the listener report.
 
 ---
 

@@ -57,6 +57,7 @@ The project is divided into four main logical components:
   - `docker_health.py`: Connects to the Docker socket.
   - `ssl_check.py`: Makes outbound connections to public domains.
   - `backup_check.py`: Parses the local `rclone` log file.
+  - `azuracast_check.py`: Connects to the AzuraCast API to get listener data.
 
 - **`utils/` (The Helpers):** This directory contains common utilities used by other parts of the application.
   - `logger.py`: Sets up application-wide logging to both the console and a rotating file.

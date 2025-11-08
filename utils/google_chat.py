@@ -175,6 +175,40 @@ def send_daily_summary(services_status: Dict[str, str], backup_status: str, ssl_
     }
     _send_card(card_payload)
 
+def send_azuracast_summary(listeners_total: int, station_name: str):
+    """
+    Sends a dedicated daily listener report for AzuraCast.
+
+    Args:
+        listeners_total (int): The total number of unique listeners for the day.
+        station_name (str): The name of the station being reported on.
+    """
+    log.info(f"Preparing AzuraCast listener summary for station '{station_name}'.")
+    date_str = datetime.now().strftime("%B %d, %Y")
+    
+    emoji = "📈"
+
+    summary_text = (
+        f"Today, we had a total of **{listeners_total}** unique listeners tune in to the radio. "
+        "Great work, team!"
+    )
+
+    card_payload = {
+        "cardsV2": [{
+            "cardId": "azuracast-summary-card",
+            "card": {
+                "header": {
+                    "title": f"{emoji} {station_name} Daily Listener Report",
+                    "subtitle": f"for {date_str}",
+                    "imageUrl": "https://img.icons8.com/fluency/96/radio.png",
+                    "imageType": "CIRCLE"
+                },
+                "sections": [{"widgets": [{"textParagraph": {"text": summary_text}}]}]
+            }
+        }]
+    }
+    _send_card(card_payload)
+
 def test_webhook():
     """
     Sends a simple test message to the configured webhook to verify connectivity.
