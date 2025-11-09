@@ -9,6 +9,66 @@ times of the day and a function to retrieve a random one.
 import random
 
 # -----------------------------------------------------------------------------
+# Morning Greetings
+# -----------------------------------------------------------------------------
+morning_greetings = [
+    "Good morning, team! Here is today's status summary:",
+    "Hello everyone, here's your daily update:",
+    "Rise and shine! Time for the morning status report:",
+    "A new day, a new report! Good morning:",
+    "Morning, PinoySeoul Media! Here's the latest:",
+    "Top of the morning! Your daily infrastructure brief:",
+    "Hope you're having a great start! Here's the system status:",
+    "Good day! Bringing you the latest on our services:",
+    "Greetings! Your automated morning check-in is here:",
+    "Hello, early birds! Here's what's happening across our platforms:"
+]
+
+# -----------------------------------------------------------------------------
+# Morning Closings
+# -----------------------------------------------------------------------------
+morning_closings = [
+    "Have a productive day! 🚀",
+    "Wishing you a successful day ahead!",
+    "Go forth and conquer! 💪",
+    "Stay awesome, team! ✨",
+    "Make today amazing! 🌟",
+    "Here's to a smooth and efficient day!",
+    "Keep up the great work!",
+    "May your day be filled with success!",
+    "Cheers to a productive day!",
+    "Let's make it a great one!"
+]
+
+# -----------------------------------------------------------------------------
+# Evening Greetings
+# -----------------------------------------------------------------------------
+evening_greetings = [
+    "Good evening! Today, the radio station reached a total of",
+    "Hello everyone, here's the latest from the airwaves. We reached",
+    "As the day winds down, here's the listener count:",
+    "Night, PinoySeoul Media! Listener summary incoming. We saw",
+    "Wrapping up the day with our listener summary. Today's total is",
+]
+
+# -----------------------------------------------------------------------------
+# Evening Closings
+# -----------------------------------------------------------------------------
+evening_closings = [
+    "Amazing work, everyone. Let's keep it up! 🎉",
+    "Great job today! Rest up for tomorrow. 🌙",
+    "Keep those listeners tuned in! 📻",
+    "Another successful day on air! 🎧",
+    "Thanks for a great day of broadcasting! 🎤",
+    "Wishing you a peaceful evening!",
+    "Sweet dreams and happy listening!",
+    "Looking forward to another great day on the air!",
+    "Keep the good vibes going!",
+    "That's a wrap for today's listeners. See you tomorrow!"
+]
+
+
+# -----------------------------------------------------------------------------
 # Korean-Themed Morning Quotes (Productivity & A New Day)
 # -----------------------------------------------------------------------------
 morning_quotes = [
@@ -210,6 +270,27 @@ evening_quotes = [
     "밤은 당신의 성공을 축하하는 시간이다. - The night is a time to celebrate your success.",
     "오늘의 당신은 미래를 만들었다. - You created the future today."
 ]
+
+def get_random_phrase(phrase_type: str) -> str:
+    """
+    Selects a random phrase based on the specified type.
+
+    Args:
+        phrase_type (str): The type of phrase to get (e.g., 'morning_greeting',
+                           'evening_closing').
+
+    Returns:
+        A randomly selected phrase string.
+    """
+    if phrase_type == 'morning_greeting':
+        return random.choice(morning_greetings)
+    elif phrase_type == 'morning_closing':
+        return random.choice(morning_closings)
+    elif phrase_type == 'evening_greeting':
+        return random.choice(evening_greetings)
+    elif phrase_type == 'evening_closing':
+        return random.choice(evening_closings)
+    return ""
 
 def get_random_quote(quote_type: str) -> str:
     """

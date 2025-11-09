@@ -73,6 +73,9 @@ Every morning, the service sends a single, clean summary report to Google Chat, 
 ### Motivational Quotes
 To boost team morale, the monitor now includes a "Quote of the Day" in the morning summary and a "Quote of the Night" in the evening listener report. These Korean-themed proverbs focus on productivity and success, adding a nice touch of inspiration to the automated reports.
 
+### Dynamic Messaging
+To keep the automated alerts feeling fresh and engaging, the morning and evening summaries now use a variety of randomized greetings and closing messages. Instead of seeing the same static text every day, the bot will rotate through a collection of different phrases.
+
 ---
 
 ## 3. Tech Stack
@@ -218,20 +221,21 @@ To make the monitor truly automated, schedule the scripts to run using `cron`.
 ```cron
 # PinoySeoul Monitor Schedule
 # -----------------------------------------------------------------------------
+# Change to the project directory and run checks. This is crucial.
 # Check Docker container health every 5 minutes.
-*/5 * * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_checks.sh docker >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+*/5 * * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh docker >> logs/cron.log 2>&1
 
 # Check SSL certificates once a day at 8:00 AM.
-0 8 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_checks.sh ssl >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+0 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh ssl >> logs/cron.log 2>&1
 
 # Check backup status once a day at 8:05 AM (after the backup has run).
-5 8 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_checks.sh backup >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+5 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh backup >> logs/cron.log 2>&1
 
-# Send the daily listener summary report every day at 8:00 PM (20:00).
-0 20 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_checks.sh listener_summary >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+# Send the daily listener summary report every day at 9:00 PM (21:00).
+0 21 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --listener-summary >> logs/cron.log 2>&1
 
 # Send the daily summary report every day at 9:00 AM.
-0 9 * * * /home/pinoyseoul/pinoyseoul-monitor/.venv/bin/python /home/pinoyseoul/pinoyseoul-monitor/main.py --summary >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+0 9 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --summary >> logs/cron.log 2>&1
 ```
 
 ---

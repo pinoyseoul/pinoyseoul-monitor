@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 import logging
 from dotenv import load_dotenv
+from utils.quotes import get_random_phrase
 
 # Load environment variables from .env file
 load_dotenv()
@@ -149,7 +150,7 @@ def send_daily_summary(services_status: Dict[str, str], backup_status: str, ssl_
     tools_status_text = "<br>".join(tools_status_lines)
 
     summary_text = (
-        f"<b>Good morning! Here is today's status summary:</b><br><br>"
+        f"<b>{get_random_phrase('morning_greeting')}</b><br><br>"
         f"<b>Key Services:</b><br>"
         f"• Radio: {services_status.get('Radio', 'Unknown')}<br>"
         f"• Website: {services_status.get('Website', 'Unknown')}<br><br>"
@@ -163,7 +164,9 @@ def send_daily_summary(services_status: Dict[str, str], backup_status: str, ssl_
     if quote:
         summary_text += f"<br><br><i><b>Quote of the Day:</b> {quote}</i>"
 
-    summary_text += "<br><br><i>Have a productive day! 🚀</i>"
+    summary_text += f"<br><br><i>{get_random_phrase('morning_closing')}</i>"
+    
+    log.info(f"Daily Summary Message: {summary_text}")
 
     card_payload = {
         "cardsV2": [{
@@ -174,9 +177,7 @@ def send_daily_summary(services_status: Dict[str, str], backup_status: str, ssl_
                     "imageUrl": "https://img.icons8.com/fluency/96/positive-dynamic.png",
                     "imageType": "CIRCLE"
                 },
-                "sections": [{
-                    "widgets": [{"textParagraph": {"text": summary_text}}]
-                }]
+                "sections": [{"widgets": [{"textParagraph": {"text": summary_text}}]}]
             }
         }]
     }
@@ -196,14 +197,16 @@ def send_azuracast_summary(listeners_total: int, station_name: str, quote: Optio
     emoji = "📈"
 
     summary_text = (
-        f"Good evening! Today, the radio station reached a total of "
+        f"{get_random_phrase('evening_greeting')} "
         f"<b>{listeners_total} unique listeners.</b><br><br>"
-        "Amazing work, everyone. Let's keep it up! 🎉"
+        f"{get_random_phrase('evening_closing')}"
     )
 
     # Add the quote of the night if provided
     if quote:
         summary_text += f"<br><br><i><b>Quote of the Night:</b> {quote}</i>"
+    
+    log.info(f"AzuraCast Summary Message: {summary_text}")
 
     card_payload = {
         "cardsV2": [{

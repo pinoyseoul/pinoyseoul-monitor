@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Dynamic Messaging:** The daily morning and evening summary reports now feature randomized greetings and closing messages to make the alerts feel more engaging and less static.
+- **Listener Summary Cron Job:** Added the missing cron job to automatically send the AzuraCast listener summary every evening at 9 PM.
+
+### Fixed
+- **Cron Job Execution:** Corrected a critical bug where cron jobs would fail to execute because they were not running from the project's root directory. All cron commands now `cd` into the correct directory before running, ensuring that relative paths to configuration files and scripts are resolved correctly.
+
+---
+
+## [1.1.1] - 2025-11-09
+
+### Added
 - **Motivational Quotes:** The daily morning and evening summary reports now include a randomly selected, Korean-themed motivational quote to enhance team morale.
   - A new `utils/quotes.py` module was created to store and manage 100 morning and 100 evening quotes.
 
