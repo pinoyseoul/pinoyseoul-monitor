@@ -1,6 +1,15 @@
 # This is the central configuration file for the PinoySeoul Monitoring service.
 
 # -----------------------------------------------------------------------------
+# General Settings
+# -----------------------------------------------------------------------------
+general:
+  # The local timezone for the monitor. This ensures that scheduled reports
+  # are sent at the correct local time, regardless of the server's timezone.
+  # A list of valid timezones can be found here: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+  timezone: "Asia/Manila"
+
+# -----------------------------------------------------------------------------
 # Google Chat Integration
 # -----------------------------------------------------------------------------
 google_chat:

@@ -9,6 +9,7 @@
 #
 # USAGE:
 # Call this script from your crontab with the desired check as an argument.
+# For the daily summary, use 'main.py --scheduled-summary' directly in cron.
 #
 # EXAMPLE CRON ENTRIES:
 #
@@ -18,6 +19,8 @@
 # # Run only the Docker check every 5 minutes
 # */5 * * * * /bin/bash /path/to/run_checks.sh docker >> /path/to/cron.log 2>&1
 #
+# # Send the daily summary report every day at 9:00 AM (using the new scheduled-summary argument)
+# # 0 9 * * * cd /path/to/pinoyseoul-monitor && .venv/bin/python main.py --scheduled-summary >> logs/cron.log 2>&1
 
 # --- Configuration ---
 set -e # Exit immediately if a command exits with a non-zero status.

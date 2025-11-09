@@ -147,6 +147,7 @@ All settings are managed in `config.yml`.
 
 ### Editing `config.yml`
 This file is organized into sections:
+- **`general`**: Configure the application's local timezone for accurate scheduling.
 - **`docker`**: Enable/disable the Docker check and map your technical container names to friendly names.
 - **`ssl`**: Enable/disable the SSL check and list all the domains you want to monitor.
 - **`backup`**: Enable/disable the backup check and provide the correct `log_path`, `min_size_mb` (e.g., `50`), and `max_age_hours`.
@@ -235,7 +236,7 @@ To make the monitor truly automated, schedule the scripts to run using `cron`.
 0 21 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --listener-summary >> logs/cron.log 2>&1
 
 # Send the daily summary report every day at 9:00 AM.
-0 9 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --summary >> logs/cron.log 2>&1
+0 9 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --scheduled-summary >> logs/cron.log 2>&1
 ```
 
 ---

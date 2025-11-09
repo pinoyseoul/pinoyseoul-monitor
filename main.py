@@ -13,6 +13,8 @@ import sys
 import yaml
 import logging
 from dotenv import load_dotenv
+from datetime import datetime
+import pytz
 
 # --- Module Imports ---
 # We wrap imports in a try/except block to provide a graceful exit
@@ -195,6 +197,7 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--check', choices=['docker', 'ssl', 'backup', 'all'], help="Run a specific health check.")
     group.add_argument('--summary', action='store_true', help="Run all checks and send the daily summary report.")
+    group.add_argument('--scheduled-summary', action='store_true', help="Run the daily summary only if it's the scheduled time.")
     group.add_argument('--listener-summary', action='store_true', help="Send the AzuraCast daily listener summary.")
     group.add_argument('--test', action='store_true', help="Send a test alert to the configured webhook.")
     
@@ -229,6 +232,31 @@ def main():
 
     if args.summary:
         run_summary(config)
+        sys.exit(0)
+
+    if args.scheduled_summary:
+        tz_str = config.get('general', {}).get('timezone', 'UTC')
+        summary_time_str = config.get('schedule', {}).get('daily_summary_time', '09:00')
+        
+        try:
+            timezone = pytz.timezone(tz_str)
+            now = datetime.now(timezone)
+            
+            summary_hour, summary_minute = map(int, summary_time_str.split(':'))
+            
+            # Check if the current time is within a 5-minute window of the scheduled time
+            # This handles minor cron job delays
+            if now.hour == summary_hour and now.minute >= summary_minute and now.minute < summary_minute + 5:
+                log.info(f"Current time {now.strftime('%H:%M')} matches scheduled summary time {summary_time_str}. Running summary.")
+                run_summary(config)
+            else:
+                log.info(f"Current time {now.strftime('%H:%M')} in {tz_str} is not the scheduled summary time ({summary_time_str}). Skipping.")
+        except pytz.UnknownTimeZoneError:
+            log.error(f"Invalid timezone '{tz_str}' in config. Skipping scheduled summary.")
+            sys.exit(1)
+        except Exception as e:
+            log.error(f"An error occurred during scheduled summary check: {e}")
+            sys.exit(1)
         sys.exit(0)
 
     if args.check:
