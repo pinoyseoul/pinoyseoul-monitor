@@ -36,11 +36,24 @@ def get_listener_summary(config: Dict[str, Any], evening_quote: str = None) -> b
         response.raise_for_status()
         data = response.json()
 
+        unique_listeners = 0
         try:
-            unique_listeners = data['daily']['metrics'][0]['data'][0]['y']
-        except (KeyError, IndexError):
-            log.error("Could not parse unique listener count from AzuraCast API response.")
-            unique_listeners = 0
+            # Find the 'unique listeners' metric instead of assuming it's the first one.
+            for metric in data.get('daily', {}).get('metrics', []):
+                # The metric name can be 'unique_listeners' or 'Unique Listeners', etc.
+                metric_name = metric.get('name', '').lower()
+                if 'unique' in metric_name:
+                    # The data is for a single day, so we expect one value.
+                    if metric.get('data') and len(metric['data']) > 0:
+                        unique_listeners = metric['data'][0].get('y', 0)
+                        break # Exit loop once found
+            else: # This 'else' belongs to the 'for' loop
+                log.error("Could not find the 'unique listeners' metric in the AzuraCast API response.")
+
+        except (KeyError, IndexError, TypeError) as e:
+            log.error(f"Could not parse unique listener count from AzuraCast API response: {e}")
+            # unique_listeners is already 0
+
 
         log.info(f"Successfully fetched daily unique listener count: {unique_listeners}")
         send_azuracast_summary(
