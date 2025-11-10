@@ -1,5 +1,12 @@
 # Changelog
 
+## 2025-11-10
+
+### Fixed
+- Resolved scheduling issues for daily and listener summary reports.
+  - Implemented `--scheduled-listener-summary` argument in `main.py` to ensure AzuraCast listener summaries are sent only at their configured time and timezone.
+  - Updated cron jobs for both daily summary and AzuraCast listener summary to utilize their respective scheduled arguments (`--scheduled-summary` and `--scheduled-listener-summary`), ensuring adherence to `config.yml`'s time and timezone settings.
+
 ## 2025-11-09
 
 ### Fixed
