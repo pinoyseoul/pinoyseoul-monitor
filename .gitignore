@@ -19,3 +19,4 @@ config.yml
 # IDE specific
 .idea/
 .vscode/
+monitor_state.json

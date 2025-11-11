@@ -1,5 +1,21 @@
 # Changelog
 
+## 2025-11-11
+
+### Added
+- **Auto-Remediation (Self-Healing):** The Docker monitor now automatically restarts any service it finds in a "stopped" state and sends an informational alert upon success.
+- **Stateful "Resolved" Alerts:** The monitoring system now remembers when a service is down and sends a follow-up "ALL CLEAR" message when the issue has been resolved.
+- Created a new `utils/state_manager.py` utility to handle state persistence in a `monitor_state.json` file.
+
+### Fixed
+- **Backup System:** Repaired the entire backup process by fixing a `tar` syntax error in `backup.sh`, moving the cron job to the system-wide crontab to run as `root`, and correcting the file permissions on `rclone.conf`.
+- **Timezone Synchronization:** Corrected all cron jobs (for both the monitor and other system scripts) to run on the `Asia/Manila` timezone, fixing the root cause of delayed or missed notifications.
+- **Silent Failures:** Fixed multiple logical flaws that were preventing alerts from being sent for stale backups and `rclone` command failures.
+
+### Improved
+- **User-Friendly Alerts:** All alert messages have been completely rewritten to be non-technical, focusing on business impact and providing a clear call to action (contacting `tech@pinoyseoul.com`).
+- **Documentation:** Comprehensively updated `README.md` with all new features and corrected configurations.
+
 ## 2025-11-10
 
 ### Fixed

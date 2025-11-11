@@ -1,6 +1,6 @@
 # PinoySeoul Infrastructure Monitor
 
-> **Your 24/7 automated watchdog for PinoySeoul Media's self-hosted infrastructure.**
+> **Your 24/7 intelligent and self-healing watchdog for PinoySeoul Media's self-hosted infrastructure.**
 
 <!-- Badges -->
 <p align="center">
@@ -11,11 +11,11 @@
   <img alt="Contributions Welcome" src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg">
 </p>
 
-This project, developed by Nash Ang for PinoySeoul Media Enterprise, is a robust, self-hosted monitoring and alerting service. It proactively keeps an eye on critical services like Docker containers, SSL certificates, and daily backups, instantly notifying your team via Google Chat when issues arise. Designed for reliability and ease of use, it ensures your digital infrastructure runs smoothly, empowering cultural exchange through 24/7 streaming, creator partnerships, and AI-powered content.
+This project, developed by Nash Ang for PinoySeoul Media Enterprise, is an intelligent, self-healing monitoring and alerting service. It proactively keeps an eye on critical services like Docker containers, SSL certificates, and daily backups. It automatically attempts to fix common problems and instantly notifies your team via Google Chat with simple, non-technical alerts when issues arise or are resolved.
 
 ![Critical Alert Example](docs/screenshots/critical-alert.png)
 </br>
-*Caption: An example of a critical alert sent to Google Chat, showing immediate notification of a service outage.*
+*Caption: An example of a user-friendly critical alert sent to Google Chat, showing immediate notification of a service outage.*
 
 ## Quick Links
 - [Project Overview](#1-project-overview)
@@ -39,42 +39,48 @@ This project, developed by Nash Ang for PinoySeoul Media Enterprise, is a robust
 
 The PinoySeoul Monitoring Service is a lightweight, standalone Python application that runs on your server to proactively monitor the health of all your critical services. It is designed to run quietly in the background, perform regular checks, and instantly notify your team via Google Chat the moment an issue is detected.
 
-This project solves the problem of "silent failures." Instead of manually checking if your websites are online or if your backups completed, this service automates the process. It acts as a 24/7 watchdog, giving you peace of mind and allowing your team to react to problems immediately, not hours or days later.
+This project solves the problem of "silent failures." Instead of manually checking if your websites are online or if your backups completed, this service automates the process and even tries to fix problems on its own. It acts as a 24/7 watchdog, giving you peace of mind and allowing your team to react to problems immediately, not hours or days later.
 
 ### Key Features
 - ✅ **Automated Health Checks:** Runs checks for Docker, SSL, and backups on a configurable schedule.
-- 🚀 **Proactive Alerting:** Sends instant, user-friendly alerts to Google Chat when an issue is detected.
+- 🧠 **Auto-Remediation:** Automatically attempts to restart stopped Docker services, fixing problems without human intervention.
+- 🚀 **Stateful Alerting:** Sends a follow-up "All Clear" message when a previously detected problem has been resolved.
+- 💬 **User-Friendly Notifications:** Alerts are written in simple, non-technical language for a general audience.
 - 📊 **Daily Summaries:** Delivers a daily "all-clear" report so you know everything is running smoothly.
 - ⚙️ **Highly Configurable:** Easily manage all settings from a single, central `config.yml` file.
-- 🔧 **Beginner-Friendly:** Designed with clear, simple code and extensive documentation.
 
 ---
 
 ## 2. Features & Capabilities
 
+### Auto-Remediation (Self-Healing)
+The monitor now actively tries to fix problems it discovers. If a Docker-based service is found to be offline (in an "exited" state), the monitor will automatically attempt to restart it. If the restart is successful, it sends a notification that the problem was found and fixed. This reduces downtime and the need for manual intervention for minor glitches.
+
+### Stateful "Resolved" Alerts
+To prevent "alert fatigue" and provide peace of mind, the monitor remembers when a service is down. When a subsequent check confirms that the service is back online, the system sends a reassuring "ALL CLEAR" message to the chat. This means you'll always know the current status of an issue without having to check manually.
+
+### User-Friendly Google Chat Alerts
+Alerts are designed to be understood by everyone in the chatroom, regardless of their technical background. Each alert clearly explains:
+- **What's happening** in simple terms.
+- **How it affects you** or your users.
+- **What to do,** which is typically to contact the designated technical team.
+
+This approach turns cryptic errors into clear, actionable information for the entire team.
+
 ### Docker Container Monitoring
-The service connects to your local Docker daemon to ensure all your application containers are running. It can detect stopped, exited, or unstable (restarting) containers and immediately alert you, using friendly names (e.g., "Dolibarr CRM" instead of "dolibarr_container_1").
+The service connects to your local Docker daemon to ensure all your application containers are running. It can detect stopped, exited, or unstable (restarting) containers and immediately alert you.
 
 ### SSL Certificate Checking
-It automatically checks the SSL certificates for all your public-facing domains. You'll receive a `WARNING` alert when a certificate is due for renewal (less than 30 days) and a `CRITICAL` alert if it's about to expire (less than 7 days), preventing security warnings and loss of visitor trust.
+It automatically checks the security certificates for all your public-facing domains. You'll receive warnings for upcoming renewals and critical alerts for expired or expiring certificates, preventing security warnings and loss of visitor trust.
 
 ### Backup Verification
-Instead of just hoping your backups worked, this monitor parses your `rclone` log files to verify that the backup process completed successfully, had no errors, and produced a file of a reasonable size. This provides true confirmation that your data is safe.
+Instead of just hoping your backups worked, this monitor checks your `rclone` remote storage to verify that a backup file was recently and successfully uploaded. This provides true confirmation that your data is safe.
 
 ### AzuraCast Daily Listener Report
 Connects to your AzuraCast radio station's API to fetch and report the total number of unique listeners for the day, sending a motivational summary to your team each evening.
 
-### User-Friendly Google Chat Alerts
-Alerts are designed to be understood by everyone, not just technical users. They clearly state the problem, the business impact, and who is handling it, turning cryptic errors into actionable information.
-
 ### Daily Summary Reports
 Every morning, the service sends a single, clean summary report to Google Chat, confirming the status of all monitored systems. This "all-clear" signal is a great way to start the day with confidence.
-
-### Motivational Quotes
-To boost team morale, the monitor now includes a "Quote of the Day" in the morning summary and a "Quote of the Night" in the evening listener report. These Korean-themed proverbs focus on productivity and success, adding a nice touch of inspiration to the automated reports.
-
-### Dynamic Messaging
-To keep the automated alerts feeling fresh and engaging, the morning and evening summaries now use a variety of randomized greetings and closing messages. Instead of seeing the same static text every day, the bot will rotate through a collection of different phrases.
 
 ---
 
@@ -126,7 +132,7 @@ This script will:
 
 ### Step 3: Configure Your Settings
 The setup script will pause and ask you to edit two files:
-- **`.env`**: Open this file and paste your Google Chat webhook URL.
+- **`.env`**: Open this file and paste your Google Chat webhook URL and any other required secrets (like API keys).
 - **`config.yml`**: Open this file and review the settings to ensure they match your setup.
 
 ### Step 4: Test the Webhook
@@ -150,8 +156,8 @@ This file is organized into sections:
 - **`general`**: Configure the application's local timezone for accurate scheduling.
 - **`docker`**: Enable/disable the Docker check and map your technical container names to friendly names.
 - **`ssl`**: Enable/disable the SSL check and list all the domains you want to monitor.
-- **`backup`**: Enable/disable the backup check and provide the correct `log_path`, `min_size_mb` (e.g., `50`), and `max_age_hours`.
-- **`portainer`**: Set the URL for the "View in Portainer" button in alerts.
+- **`backup`**: Enable/disable the backup check and provide the correct `rclone_remote` and `max_age_hours`.
+- **`portainer`**: Set the URL for the "Manage Server" button in alerts.
 - **`logging`**: Configure the application's own logging behavior.
 
 ---
@@ -219,25 +225,29 @@ To make the monitor truly automated, schedule the scripts to run using `cron`.
 2. Add lines for each check you want to automate.
 
 ### Example Crontab Entries
+**IMPORTANT:** The `TZ=Asia/Manila` prefix is crucial if your server's system time is not set to your local timezone. It ensures the jobs run on the correct schedule.
+
 ```cron
 # PinoySeoul Monitor Schedule
 # -----------------------------------------------------------------------------
-# Change to the project directory and run checks. This is crucial.
+# Note: All jobs are set to run on the 'Asia/Manila' timezone.
+
 # Check Docker container health every 5 minutes.
-*/5 * * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh docker >> logs/cron.log 2>&1
+TZ=Asia/Manila */5 * * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh docker >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
 
 # Check SSL certificates once a day at 8:00 AM.
-0 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh ssl >> logs/cron.log 2>&1
+TZ=Asia/Manila 0 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh ssl >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
 
-# Check backup status once a day at 8:05 AM (after the backup has run).
-5 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh backup >> logs/cron.log 2>&1
-
-# Send the daily listener summary report every day at 9:00 PM (21:00).
-0 21 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --listener-summary >> logs/cron.log 2>&1
+# Check backup status once a day at 8:05 AM.
+TZ=Asia/Manila 5 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh backup >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
 
 # Send the daily summary report every day at 9:00 AM.
-0 9 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --scheduled-summary >> logs/cron.log 2>&1
+TZ=Asia/Manila 0 9 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_summary.sh summary >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+
+# Send the AzuraCast daily listener summary report every day at 9:00 PM.
+TZ=Asia/Manila 0 21 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_summary.sh listener-summary >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
 ```
+**Note:** The main backup job itself should be scheduled in the system-wide crontab (`/etc/crontab`) to run as `root`.
 
 ---
 
@@ -258,7 +268,7 @@ Below are examples of what the alerts look like in Google Chat.
 ### Info Alert
 ![Info Alert Example](docs/screenshots/info-alert.png)
 </br>
-*Caption: An INFO alert is sent in green for successful, non-critical events.*
+*Caption: An INFO alert is sent in green for successful, non-critical events like an auto-recovery or a resolved issue.*
 
 ### Daily Summary
 ![Daily Summary Example](docs/screenshots/daily-summary.png)
@@ -270,7 +280,7 @@ Below are examples of what the alerts look like in Google Chat.
 ## 10. Troubleshooting
 
 - **Issue:** Alerts are not appearing in Google Chat.
-  - **Solution:** Run `python main.py --test`. If it fails, your `GOOGLE_CHAT_WEBHOOK_URL` in the `.env` file is likely incorrect.
+  - **Solution:** Run `python main.py --test`. If it fails, your `GOOGLE_CHAT_WEBHOOK_URL` in the `.env` file is likely incorrect or missing.
 
 - **Issue:** `docker` command fails with "permission denied".
   - **Solution:** The user running the script is not in the `docker` group. Run `sudo usermod -aG docker $USER`, then **log out and log back in**.
@@ -287,11 +297,16 @@ Below are examples of what the alerts look like in Google Chat.
 ## 11. Project Structure
 ```
 pinoyseoul-monitor/
+├── .env                 # Holds secret keys (e.g., webhook URL). Not committed to Git.
 ├── config.yml           # Your active configuration file.
 ├── main.py              # The main entry point for the application.
+├── monitor_state.json   # Stores the status of services between checks.
 ├── README.md            # This file.
 ├── monitors/            # Contains all the individual checking logic.
-├── utils/               # Contains helper modules (alerts, logging, quotes).
+├── utils/               # Contains helper modules.
+│   ├── google_chat.py   # Formats and sends alerts.
+│   ├── state_manager.py # Remembers the state of services.
+│   └── ...
 └── scripts/             # Contains shell scripts for setup and automation.
 ```
 

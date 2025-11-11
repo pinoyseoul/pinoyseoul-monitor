@@ -12,6 +12,7 @@ from typing import List, Dict, Any
 
 # Assuming this module is run in an environment where utils can be imported
 from utils.google_chat import send_alert
+from utils.state_manager import load_state, save_state, is_service_down, mark_service_down, mark_service_up
 
 # Set up a logger for this module
 log = logging.getLogger(__name__)
@@ -32,25 +33,19 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int], portainer_ur
     """
     Connects to a list of domains, checks their SSL certificates, sends
     alerts for issues, and returns a detailed status for each.
-
-    Args:
-        domains (List[str]): A list of domain names to check.
-        alert_days (Dict[str, int]): A dictionary with integer values for
-                                     'critical' and 'warning' day thresholds.
-
-    Returns:
-        A list of dictionaries, one for each domain, containing its status.
     """
     results = []
     context = ssl.create_default_context()
     
-    # Get thresholds from config, with sensible defaults
+    state = load_state()
+    
     critical_threshold = alert_days.get('critical', 7)
     warning_threshold = alert_days.get('warning', 30)
 
-    nginx_button = [{"text": "View in Nginx", "url": nginx_proxy_manager_url}]
-
+    nginx_button = [{"text": "Manage Certificates", "url": nginx_proxy_manager_url}]
+    
     for domain in domains:
+        domain_down = False
         status_report = {
             'domain': domain,
             'status': 'error',
@@ -74,74 +69,75 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int], portainer_ur
 
                     if days_left < 0:
                         status_report['status'] = 'critical'
-                        send_alert(
-                            message=f"The security certificate for {domain} has EXPIRED.",
-                            severity="critical",
-                            title="Website Security EXPIRED",
-                            details=f"Impact: Visitors will see a security warning and may not be able to access the site. This must be fixed immediately.",
-                            portainer_url=portainer_url,
-                            extra_buttons=nginx_button
+                        domain_down = True
+                        details = (
+                            f"<b>What's happening:</b> The website security lock (SSL certificate) for <b>{domain}</b> has expired.\n"
+                            f"<b>Impact:</b> Visitors will see a large, scary security warning and may be blocked from using the site. This damages trust.\n\n"
+                            "<b>What to do:</b> Please contact the technical team at tech@pinoyseoul.com and report that the 'SSL certificate for {domain} has expired'."
                         )
+                        send_alert(f"Website Security EXPIRED for {domain}", severity="critical", title="URGENT: Website Security Expired", details=details, extra_buttons=nginx_button)
+                    
                     elif days_left < critical_threshold:
                         status_report['status'] = 'critical'
-                        send_alert(
-                            message=f"The security certificate for {domain} expires in just {days_left} days.",
-                            severity="critical",
-                            title=f"URGENT: Website Security for {domain} Expiring Soon",
-                            details="Action: The certificate must be renewed immediately to avoid security warnings for visitors.",
-                            portainer_url=portainer_url,
-                            extra_buttons=nginx_button
+                        domain_down = True
+                        details = (
+                            f"<b>What's happening:</b> The website security lock for <b>{domain}</b> will expire in only {days_left} days.\n"
+                            f"<b>Impact:</b> If this is not fixed, the site will soon show a security warning to all visitors.\n\n"
+                            "<b>What to do:</b> Please contact the technical team at tech@pinoyseoul.com and ask them to 'renew the SSL certificate for {domain}'."
                         )
+                        send_alert(f"Website Security for {domain} expires in {days_left} days", severity="critical", title=f"URGENT: Renew Website Security", details=details, extra_buttons=nginx_button)
+
                     elif days_left < warning_threshold:
                         status_report['status'] = 'warning'
-                        send_alert(
-                            message=f"The security certificate for {domain} is due for renewal in {days_left} days.",
-                            severity="warning",
-                            title=f"Website Security Renewal Needed for {domain}",
-                            details="To avoid any service interruption, please schedule this for renewal soon.",
-                            portainer_url=portainer_url,
-                            extra_buttons=nginx_button
+                        # This is a warning, not a "down" state, so we don't mark it as down.
+                        details = (
+                            f"<b>What's happening:</b> This is a routine notice that the website security lock for <b>{domain}</b> is due for renewal in {days_left} days.\n"
+                            f"<b>Impact:</b> There is no impact to users right now.\n\n"
+                            "<b>What to do:</b> No action is needed from you. The technical team has been notified and will renew it before it expires."
                         )
+                        send_alert(f"Website security for {domain} needs renewal soon", severity="warning", title=f"Heads-Up: Security Renewal", details=details, extra_buttons=nginx_button)
+                    
                     else:
                         status_report['status'] = 'valid'
                         log.info(f"SSL for {domain} is valid for {days_left} days.")
+                        if is_service_down(domain, state):
+                            details = f"<b>What happened:</b> The security or connectivity issue affecting <b>{domain}</b> has been resolved. The site is now secure and accessible."
+                            send_alert(f"The issue with {domain} is resolved", severity="info", title=f"ALL CLEAR: {domain} Restored", details=details)
+                            mark_service_up(domain, state)
 
         except (socket.gaierror, socket.timeout, ConnectionRefusedError) as e:
             log.warning(f"Could not reach {domain} to check SSL: {e}")
             status_report['status'] = 'error'
-            send_alert(
-                message=f"Could not connect to the server for {domain} to check its security certificate.",
-                severity="warning",
-                title=f"Cannot Check Security for {domain}",
-                details="What happened: The monitor couldn't reach this service. This might mean the service is down.",
-                portainer_url=portainer_url,
-                extra_buttons=nginx_button
+            domain_down = True
+            details = (
+                f"<b>What's happening:</b> The monitor can't connect to the server at <b>{domain}</b>. This usually means the website or service is offline.\n"
+                f"<b>Impact:</b> The service at this domain is unavailable.\n\n"
+                "<b>What to do:</b> Please contact the technical team at tech@pinoyseoul.com and report that the service at '{domain}' is unreachable."
             )
+            send_alert(f"Cannot connect to the server for {domain}", severity="warning", title=f"Service Unreachable: {domain}", details=details)
+
         except ssl.SSLCertVerificationError as e:
             log.error(f"Invalid SSL certificate for {domain}: {e}")
             status_report['status'] = 'critical'
-            send_alert(
-                message=f"The security certificate for {domain} is invalid.",
-                severity="critical",
-                title=f"Invalid Security Certificate on {domain}",
-                details="Impact: Visitors will see a security error. This needs to be fixed immediately.",
-                portainer_url=portainer_url,
-                extra_buttons=nginx_button
+            domain_down = True
+            details = (
+                f"<b>What's happening:</b> The website security lock for <b>{domain}</b> is broken or misconfigured.\n"
+                f"<b>Impact:</b> Visitors will see a security error and may be blocked from the site.\n\n"
+                "<b>What to do:</b> Please contact the technical team at tech@pinoyseoul.com and report an 'Invalid SSL Certificate on {domain}'."
             )
+            send_alert(f"The security certificate for {domain} is invalid", severity="critical", title=f"CRITICAL: Invalid Website Security", details=details, extra_buttons=nginx_button)
+        
         except Exception as e:
             log.error(f"An unexpected error occurred while checking SSL for {domain}: {e}")
             status_report['status'] = 'error'
-            send_alert(
-                message=f"An unexpected technical problem occurred while checking the security for {domain}.",
-                severity="critical",
-                title="Security Check Failed",
-                details=f"The technical team has been notified of the error: {str(e)}",
-                portainer_url=portainer_url,
-                extra_buttons=nginx_button
-            )
+            domain_down = True # Treat any unexpected error as a "down" state
         
+        if domain_down:
+            mark_service_down(domain, state)
+
         results.append(status_report)
         
+    save_state(state)
     return results
 
 if __name__ == '__main__':
@@ -165,7 +161,7 @@ if __name__ == '__main__':
     
     print(f"Checking domains: {test_domains}\n")
     
-    results = check_ssl_certs(test_domains, alert_days=mock_alert_days)
+    results = check_ssl_certs(test_domains, alert_days=mock_alert_days, portainer_url="", nginx_proxy_manager_url="")
     
     print("\n--- Check Complete ---")
     print("Final data structure returned by the function:")
