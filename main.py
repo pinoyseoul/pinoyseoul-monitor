@@ -197,8 +197,8 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--check', choices=['docker', 'ssl', 'backup', 'all'], help="Run a specific health check.")
     group.add_argument('--summary', action='store_true', help="Run all checks and send the daily summary report.")
-    group.add_argument('--scheduled-summary', action='store_true', help="Run the daily summary only if it's the scheduled time.")
-    group.add_argument('--scheduled-listener-summary', action='store_true', help="Send the AzuraCast daily listener summary only if it's the scheduled time.")
+    group.add_argument('--scheduled-summary', action='store_true', help="Run the daily summary (intended for cron jobs).")
+    group.add_argument('--scheduled-listener-summary', action='store_true', help="Send the AzuraCast daily listener summary (intended for cron jobs).")
     group.add_argument('--listener-summary', action='store_true', help="Send the AzuraCast daily listener summary.")
     group.add_argument('--test', action='store_true', help="Send a test alert to the configured webhook.")
     
@@ -220,7 +220,7 @@ def main():
         print("Test alert sent. Please check your Google Chat room.")
         sys.exit(0)
 
-    if args.listener_summary:
+    if args.listener_summary or args.scheduled_listener_summary:
         log.info("Running AzuraCast listener summary...")
         azuracast_config = config.get('azuracast', {})
         if azuracast_config.get('enabled', False):
@@ -231,61 +231,9 @@ def main():
             log.warning("Azuracast check skipped (disabled in config).")
         sys.exit(0)
 
-    if args.summary:
+    if args.summary or args.scheduled_summary:
+        log.info("Running daily summary...")
         run_summary(config)
-        sys.exit(0)
-
-    if args.scheduled_summary:
-        tz_str = config.get('general', {}).get('timezone', 'UTC')
-        summary_time_str = config.get('schedule', {}).get('daily_summary_time', '09:00')
-        
-        try:
-            timezone = pytz.timezone(tz_str)
-            now = datetime.now(timezone)
-            
-            summary_hour, summary_minute = map(int, summary_time_str.split(':'))
-            
-            # Check if the current time is within a 5-minute window of the scheduled time
-            # This handles minor cron job delays
-            if now.hour == summary_hour and now.minute >= summary_minute and now.minute < summary_minute + 5:
-                log.info(f"Current time {now.strftime('%H:%M')} matches scheduled summary time {summary_time_str}. Running summary.")
-                run_summary(config)
-            else:
-                log.info(f"Current time {now.strftime('%H:%M')} in {tz_str} is not the scheduled summary time ({summary_time_str}). Skipping.")
-        except pytz.UnknownTimeZoneError:
-            log.error(f"Invalid timezone '{tz_str}' in config. Skipping scheduled summary.")
-            sys.exit(1)
-        except Exception as e:
-            log.error(f"An error occurred during scheduled summary check: {e}")
-            sys.exit(1)
-        sys.exit(0)
-
-    if args.scheduled_listener_summary:
-        tz_str = config.get('general', {}).get('timezone', 'UTC')
-        listener_summary_time_str = config.get('azuracast', {}).get('daily_summary_time', '21:00')
-        
-        try:
-            timezone = pytz.timezone(tz_str)
-            now = datetime.now(timezone)
-            
-            summary_hour, summary_minute = map(int, listener_summary_time_str.split(':'))
-            
-            if now.hour == summary_hour and now.minute >= summary_minute and now.minute < summary_minute + 5:
-                log.info(f"Current time {now.strftime('%H:%M')} matches scheduled listener summary time {listener_summary_time_str}. Running listener summary.")
-                azuracast_config = config.get('azuracast', {})
-                if azuracast_config.get('enabled', False):
-                    evening_quote = get_random_quote('evening')
-                    get_listener_summary(azuracast_config, evening_quote)
-                else:
-                    log.warning("Azuracast check skipped (disabled in config).")
-            else:
-                log.info(f"Current time {now.strftime('%H:%M')} in {tz_str} is not the scheduled listener summary time ({listener_summary_time_str}). Skipping.")
-        except pytz.UnknownTimeZoneError:
-            log.error(f"Invalid timezone '{tz_str}' in config. Skipping scheduled listener summary.")
-            sys.exit(1)
-        except Exception as e:
-            log.error(f"An error occurred during scheduled listener summary check: {e}")
-            sys.exit(1)
         sys.exit(0)
 
     if args.check:

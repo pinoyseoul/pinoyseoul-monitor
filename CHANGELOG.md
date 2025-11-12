@@ -1,5 +1,14 @@
 # Changelog
 
+## 2025-11-12
+
+### Fixed
+- **Scheduled Reports:** Fixed a bug that caused the scheduled 9 AM and 9 PM summary reports to fail silently. The reports should now be delivered reliably.
+
+### Improved
+- **Smarter Backup Alerts:** The backup monitor is now more intelligent. It will only send a critical alert if a backup fails twice in a row, reducing unnecessary alerts for temporary issues.
+- **Clearer Alert Language:** Rewrote some alert messages to be simpler and easier to understand for everyone.
+
 ## 2025-11-11
 
 ### Added

@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- **Dynamic Messaging:** The daily morning and evening summary reports now feature randomized greetings and closing messages to make the alerts feel more engaging and less static.
-- **Listener Summary Cron Job:** Added the missing cron job to automatically send the AzuraCast listener summary every evening at 9 PM.
-
 ### Fixed
-- **Cron Job Execution:** Corrected a critical bug where cron jobs would fail to execute because they were not running from the project's root directory. All cron commands now `cd` into the correct directory before running, ensuring that relative paths to configuration files and scripts are resolved correctly.
+- **Cron Job Reliability:** Fixed an issue where scheduled summary reports (9 AM daily, 9 PM listener) were failing silently. The internal time-checking logic in `main.py` was removed, making the script directly trust the cron scheduler to run it at the correct time.
+
+### Added
+- **Intelligent Backup Alerts:** Implemented a "two-strikes" policy for the backup monitor. The system now only sends a critical alert if the backup check fails twice in a row. This prevents alerts for minor, temporary glitches and reduces alert fatigue.
+
+### Changed
+- **Simplified Alert Language:** The language in the backup monitor's critical alert messages has been rewritten to be clearer and more understandable for non-technical users.
 
 ---
 
