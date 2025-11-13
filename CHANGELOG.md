@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.2.0 (2025-11-13)
+
+### Fixed
+- **Cron Scheduling:** Resolved a persistent, critical issue where cron jobs for scheduled announcements were failing to execute. The root cause was a complex interaction between cron, shell wrappers, and file formats. The fix involved removing the shell wrapper scripts (`run_checks.sh`, `run_summary.sh`) and updating the crontab to call the Python script directly.
+- **Timezone-Aware Scheduling:** Re-implemented robust, timezone-aware scheduling logic directly within `main.py`. The script now uses the `general.timezone` setting from `config.yml` to ensure that scheduled summaries are sent at the correct local time.
+- **Backup Check Permissions:** Fixed a "permission denied" error in the backup check by changing the ownership of the `rclone.conf` file to the `pinoyseoul` user, allowing the cron job to read the file.
+
+### Changed
+- **Cron Configuration:** The recommended cron configuration in `README.md` has been updated to reflect the direct execution of `main.py` with the `--scheduled-summary` and `--scheduled-listener-summary` arguments.
+
 ## 2025-11-12
 
 ### Fixed

@@ -233,19 +233,19 @@ To make the monitor truly automated, schedule the scripts to run using `cron`.
 # Note: All jobs are set to run on the 'Asia/Manila' timezone.
 
 # Check Docker container health every 5 minutes.
-TZ=Asia/Manila */5 * * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh docker >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+TZ=Asia/Manila */5 * * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --check docker >> logs/cron.log 2>&1
 
 # Check SSL certificates once a day at 8:00 AM.
-TZ=Asia/Manila 0 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh ssl >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+TZ=Asia/Manila 0 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --check ssl >> logs/cron.log 2>&1
 
 # Check backup status once a day at 8:05 AM.
-TZ=Asia/Manila 5 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && /bin/bash scripts/run_checks.sh backup >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+TZ=Asia/Manila 5 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --check backup >> logs/cron.log 2>&1
 
 # Send the daily summary report every day at 9:00 AM.
-TZ=Asia/Manila 0 9 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_summary.sh summary >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+TZ=Asia/Manila 0 9 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --scheduled-summary >> logs/cron.log 2>&1
 
 # Send the AzuraCast daily listener summary report every day at 9:00 PM.
-TZ=Asia/Manila 0 21 * * * /bin/bash /home/pinoyseoul/pinoyseoul-monitor/scripts/run_summary.sh listener-summary >> /home/pinoyseoul/pinoyseoul-monitor/logs/cron.log 2>&1
+TZ=Asia/Manila 0 21 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --scheduled-listener-summary >> logs/cron.log 2>&1
 ```
 **Note:** The main backup job itself should be scheduled in the system-wide crontab (`/etc/crontab`) to run as `root`.
 
