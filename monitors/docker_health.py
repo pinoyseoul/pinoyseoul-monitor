@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 # --- Main Function ---
 
-def check_docker_health(name_map: Dict[str, str], portainer_url: str) -> Dict[str, Any]:
+def check_docker_health(name_map: Dict[str, str], portainer_url: str, state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Connects to Docker, checks all containers, attempts to auto-fix stopped
     containers, sends alerts for issues, and sends 'resolved' messages.
@@ -33,9 +33,6 @@ def check_docker_health(name_map: Dict[str, str], portainer_url: str) -> Dict[st
     }
     portainer_button = [{"text": "Manage Server", "url": portainer_url}]
     
-    # Load the previous state
-    state = load_state()
-
     try:
         client = docker.from_env(timeout=10)
         client.ping()
@@ -135,9 +132,6 @@ def check_docker_health(name_map: Dict[str, str], portainer_url: str) -> Dict[st
             )
             summary['issues'].append(name)
             summary['status'] = 'critical'
-
-    # Save the updated state
-    save_state(state)
     
     log.info(f"Docker health check complete. Final status: {summary['status']}")
     return summary
@@ -154,7 +148,10 @@ if __name__ == '__main__':
         "portainer": "Portainer UI"
     }
     
-    result = check_docker_health(name_map=mock_name_map)
+    # Mock state for testing purposes
+    mock_state = {'down_services': [], 'failure_counts': {}}
+    
+    result = check_docker_health(name_map=mock_name_map, portainer_url="", state=mock_state)
     
     print("\n--- Check Complete ---")
     print(f"  Overall Status: {result['status']}")

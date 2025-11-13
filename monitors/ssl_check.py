@@ -29,15 +29,13 @@ def _get_issuer_cn(issuer_tuple: tuple) -> str:
     return "Unknown Issuer"
 
 
-def check_ssl_certs(domains: List[str], alert_days: Dict[str, int], portainer_url: str, nginx_proxy_manager_url: str) -> List[Dict[str, Any]]:
+def check_ssl_certs(domains: List[str], alert_days: Dict[str, int], portainer_url: str, nginx_proxy_manager_url: str, state: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Connects to a list of domains, checks their SSL certificates, sends
     alerts for issues, and returns a detailed status for each.
     """
     results = []
     context = ssl.create_default_context()
-    
-    state = load_state()
     
     critical_threshold = alert_days.get('critical', 7)
     warning_threshold = alert_days.get('warning', 30)
@@ -137,7 +135,6 @@ def check_ssl_certs(domains: List[str], alert_days: Dict[str, int], portainer_ur
 
         results.append(status_report)
         
-    save_state(state)
     return results
 
 if __name__ == '__main__':
@@ -161,7 +158,10 @@ if __name__ == '__main__':
     
     print(f"Checking domains: {test_domains}\n")
     
-    results = check_ssl_certs(test_domains, alert_days=mock_alert_days, portainer_url="", nginx_proxy_manager_url="")
+    # Mock state for testing purposes
+    mock_state = {'down_services': [], 'failure_counts': {}}
+    
+    results = check_ssl_certs(test_domains, alert_days=mock_alert_days, portainer_url="", nginx_proxy_manager_url="", state=mock_state)
     
     print("\n--- Check Complete ---")
     print("Final data structure returned by the function:")

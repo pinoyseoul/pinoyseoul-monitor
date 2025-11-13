@@ -83,7 +83,7 @@ def load_config(config_path: str = 'config.yml') -> dict:
     log.info("Configuration loaded successfully.")
     return config
 
-def run_summary(config: dict):
+def run_summary(config: dict, state: dict):
     """Runs all checks and sends a single daily summary report."""
     log.info("--- Starting Daily Summary Run ---")
     
@@ -97,15 +97,17 @@ def run_summary(config: dict):
     # Run all checks and collect results
     docker_results = check_docker_health(
         name_map=docker_config.get('container_name_mapping', {}),
-        portainer_url=portainer_url
+        portainer_url=portainer_url,
+        state=state
     )
     ssl_results = check_ssl_certs(
         domains=ssl_config.get('domains', []),
         alert_days=ssl_config.get('alert_days', {}),
         portainer_url=portainer_url,
-        nginx_proxy_manager_url=nginx_proxy_manager_url
+        nginx_proxy_manager_url=nginx_proxy_manager_url,
+        state=state
     )
-    backup_results = check_backup_age(backup_config, portainer_url=portainer_url)
+    backup_results = check_backup_age(backup_config, portainer_url=portainer_url, state=state)
 
     # Format Docker status for summary
     docker_status = f"✅ {docker_results['running']}/{docker_results['total_containers']} containers running"
@@ -135,13 +137,14 @@ def run_summary(config: dict):
     send_daily_summary(services_status, backup_status, ssl_status, morning_quote)
     log.info("--- Daily Summary Sent ---")
 
-def run_checks(check_name: str, config: dict) -> bool:
+def run_checks(check_name: str, config: dict, state: dict) -> bool:
     """
     Runs a specific check or all checks.
 
     Args:
         check_name (str): The name of the check to run ('docker', 'ssl', 'backup', 'all').
         config (dict): The application configuration.
+        state (dict): The current state of the monitor.
 
     Returns:
         bool: True if all checks passed, False if any issues were found.
@@ -157,7 +160,8 @@ def run_checks(check_name: str, config: dict) -> bool:
         if docker_config.get('enabled', False):
             results = check_docker_health(
                 name_map=docker_config.get('container_name_mapping', {}),
-                portainer_url=portainer_url
+                portainer_url=portainer_url,
+                state=state
             )
             if results['status'] != 'healthy':
                 overall_healthy = False
@@ -171,7 +175,8 @@ def run_checks(check_name: str, config: dict) -> bool:
                 domains=ssl_config.get('domains', []),
                 alert_days=ssl_config.get('alert_days', {}),
                 portainer_url=portainer_url,
-                nginx_proxy_manager_url=nginx_proxy_manager_url
+                nginx_proxy_manager_url=nginx_proxy_manager_url,
+                state=state
             )
             if any(r['status'] != 'valid' for r in results):
                 overall_healthy = False
@@ -180,7 +185,7 @@ def run_checks(check_name: str, config: dict) -> bool:
 
     if check_name in ['backup', 'all']:
         if config.get('backup', {}).get('enabled', False):
-            results = check_backup_age(config.get('backup', {}), portainer_url=portainer_url)
+            results = check_backup_age(config.get('backup', {}), portainer_url=portainer_url, state=state)
             if results['status'] != 'success':
                 overall_healthy = False
         else:
@@ -214,13 +219,19 @@ def main():
         print(f"FATAL ERROR during initialization: {e}", file=sys.stderr)
         sys.exit(1)
 
+    # Load state at the beginning of the main function
+    from utils.state_manager import load_state, save_state
+    state = load_state()
+
+    exit_code = 0
+    is_healthy = True # Assume healthy unless a check fails
+
     if args.test:
         log.info("Running webhook test...")
         test_webhook()
         print("Test alert sent. Please check your Google Chat room.")
-        sys.exit(0)
-
-    if args.listener_summary:
+        
+    elif args.listener_summary:
         log.info("Running AzuraCast listener summary...")
         azuracast_config = config.get('azuracast', {})
         if azuracast_config.get('enabled', False):
@@ -229,9 +240,8 @@ def main():
             get_listener_summary(azuracast_config, evening_quote)
         else:
             log.warning("Azuracast check skipped (disabled in config).")
-        sys.exit(0)
 
-    if args.scheduled_listener_summary:
+    elif args.scheduled_listener_summary:
         log.info("Running scheduled AzuraCast listener summary...")
         azuracast_config = config.get('azuracast', {})
         if azuracast_config.get('enabled', False):
@@ -240,7 +250,7 @@ def main():
             
             try:
                 timezone = pytz.timezone(tz_str)
-                now = datetime.now(timezone)
+                now = datetime.now(pytz.utc).astimezone(timezone)
                 
                 summary_hour, summary_minute = map(int, scheduled_time_str.split(':'))
                 
@@ -252,50 +262,51 @@ def main():
                     log.info(f"Current time {now.strftime('%H:%M')} in {tz_str} is not the scheduled listener summary time ({scheduled_time_str}). Skipping listener summary.")
             except pytz.UnknownTimeZoneError:
                 log.error(f"Invalid timezone '{tz_str}' in config. Skipping scheduled listener summary.")
-                sys.exit(1)
+                exit_code = 1
             except Exception as e:
                 log.error(f"An error occurred during scheduled listener summary check: {e}")
-                sys.exit(1)
+                exit_code = 1
         else:
             log.warning("Azuracast check skipped (disabled in config).")
-        sys.exit(0)
 
-    if args.summary:
-        run_summary(config)
-        sys.exit(0)
+    elif args.summary:
+        run_summary(config, state)
 
-    if args.scheduled_summary:
+    elif args.scheduled_summary:
         log.info("Running scheduled daily summary...")
         tz_str = config.get('general', {}).get('timezone', 'UTC')
         scheduled_time_str = config.get('schedule', {}).get('daily_summary_time', '09:00')
         
         try:
             timezone = pytz.timezone(tz_str)
-            now = datetime.now(timezone)
+            now = datetime.now(pytz.utc).astimezone(timezone)
             
             summary_hour, summary_minute = map(int, scheduled_time_str.split(':'))
             
             if now.hour == summary_hour and now.minute >= summary_minute and now.minute < summary_minute + 5:
                 log.info(f"Current time {now.strftime('%H:%M')} matches scheduled summary time {scheduled_time_str}. Running summary.")
-                run_summary(config)
+                run_summary(config, state)
             else:
                 log.info(f"Current time {now.strftime('%H:%M')} in {tz_str} is not the scheduled summary time ({scheduled_time_str}). Skipping.")
         except pytz.UnknownTimeZoneError:
             log.error(f"Invalid timezone '{tz_str}' in config. Skipping scheduled summary.")
-            sys.exit(1)
+            exit_code = 1
         except Exception as e:
             log.error(f"An error occurred during scheduled summary check: {e}")
-            sys.exit(1)
-        sys.exit(0)
-
-    if args.check:
-        is_healthy = run_checks(args.check, config)
-        if not is_healthy:
+            exit_code = 1
+        
+    elif args.check:
+        results_healthy = run_checks(args.check, config, state)
+        if not results_healthy:
             log.warning(f"Check '{args.check}' completed with issues.")
-            sys.exit(1) # Exit with error code if issues were found
+            exit_code = 1
         else:
             log.info(f"Check '{args.check}' completed successfully.")
-            sys.exit(0)
+
+    # Save state at the end of the main function
+    save_state(state)
+    sys.exit(exit_code)
+
 
 if __name__ == "__main__":
     main()

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Manages the state of the monitoring system, allowing it to remember
-the status of services between checks, including failure counts.
+the status of services between checks.
 """
 
 import json
@@ -20,29 +20,20 @@ def load_state() -> Dict[str, Any]:
     Returns:
         A dictionary representing the last known state. Returns a default
         structure if the file doesn't exist or is invalid.
-        It also handles migrating the old list-based state to the new dict-based state.
     """
-    default_state = {'down_services': {}}
+    default_state = {'down_services': [], 'failure_counts': {}}
     if not os.path.exists(STATE_FILE_PATH):
         return default_state
-    
+
     try:
         with open(STATE_FILE_PATH, 'r') as f:
             state = json.load(f)
-            
-            # Backwards compatibility: migrate from old list format to new dict format
-            if isinstance(state.get('down_services'), list):
-                log.info("Old state format detected. Migrating to new dictionary format.")
-                migrated_down_services = {}
-                for service_name in state['down_services']:
-                    migrated_down_services[service_name] = {'failure_count': 1}
-                state['down_services'] = migrated_down_services
-                save_state(state) # Save the migrated state immediately
-
-            if 'down_services' not in state or not isinstance(state['down_services'], dict):
-                return default_state
+            # Ensure the required keys exist and are of the correct type
+            if 'down_services' not in state or not isinstance(state['down_services'], list):
+                state['down_services'] = []
+            if 'failure_counts' not in state or not isinstance(state['failure_counts'], dict):
+                state['failure_counts'] = {}
             return state
-            
     except (json.JSONDecodeError, IOError) as e:
         log.error(f"Could not read or parse state file at '{STATE_FILE_PATH}': {e}")
         return default_state
@@ -62,35 +53,33 @@ def save_state(state: Dict[str, Any]):
 
 def is_service_down(service_name: str, state: Dict[str, Any]) -> bool:
     """Checks if a service is currently marked as down in the state."""
-    return service_name in state.get('down_services', {})
+    return service_name in state['down_services']
 
 def mark_service_down(service_name: str, state: Dict[str, Any]):
-    """Marks a service as down in the state, initializing its failure count."""
-    if not is_service_down(service_name, state):
-        state.get('down_services', {})[service_name] = {'failure_count': 1}
+    """Marks a service as down in the state."""
+    if service_name not in state['down_services']:
+        state['down_services'].append(service_name)
         log.info(f"Marking service '{service_name}' as down.")
 
 def mark_service_up(service_name: str, state: Dict[str, Any]):
     """Marks a service as up (removes it from the down list) in the state."""
-    if is_service_down(service_name, state):
-        del state.get('down_services', {})[service_name]
+    if service_name in state['down_services']:
+        state['down_services'].remove(service_name)
         log.info(f"Marking service '{service_name}' as up.")
-
-def get_failure_count(service_name: str, state: Dict[str, Any]) -> int:
-    """Gets the current failure count for a service."""
-    return state.get('down_services', {}).get(service_name, {}).get('failure_count', 0)
+        reset_failure_count(service_name, state)
 
 def increment_failure_count(service_name: str, state: Dict[str, Any]):
-    """Increments the failure count for a service. Marks it as down if not already."""
-    if not is_service_down(service_name, state):
-        mark_service_down(service_name, state)
-    else:
-        count = get_failure_count(service_name, state)
-        state['down_services'][service_name]['failure_count'] = count + 1
-    log.info(f"Incremented failure count for '{service_name}' to {get_failure_count(service_name, state)}.")
+    """Increments the failure count for a service."""
+    if 'failure_counts' not in state:
+        state['failure_counts'] = {}
+    state['failure_counts'][service_name] = state['failure_counts'].get(service_name, 0) + 1
+
+def get_failure_count(service_name: str, state: Dict[str, Any]) -> int:
+    """Gets the failure count for a service."""
+    return state.get('failure_counts', {}).get(service_name, 0)
 
 def reset_failure_count(service_name: str, state: Dict[str, Any]):
-    """Resets the failure count for a service to 0 if it exists."""
-    if is_service_down(service_name, state):
-        state['down_services'][service_name]['failure_count'] = 0
-        log.info(f"Reset failure count for '{service_name}'.")
+    """Resets the failure count for a service."""
+    if 'failure_counts' in state and service_name in state['failure_counts']:
+        del state['failure_counts'][service_name]
+        log.info(f"Resetting failure count for service '{service_name}'.")

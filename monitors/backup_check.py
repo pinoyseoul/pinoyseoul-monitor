@@ -24,7 +24,7 @@ import json
 # Define a constant for the service name for state management
 BACKUP_SERVICE_NAME = "Server Backup System"
 
-def _get_latest_backup_info(remote: str) -> Optional[Dict[str, Any]]:
+def _get_latest_backup_info(remote: str, state: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
     Gets the latest backup file and its modification time from an rclone remote.
     """
@@ -69,9 +69,17 @@ def _get_latest_backup_info(remote: str) -> Optional[Dict[str, Any]]:
 
     except subprocess.TimeoutExpired:
         log.error(f"Timeout expired while listing files on rclone remote '{remote}'. The storage provider may be slow or unresponsive.")
+        mark_service_down(BACKUP_SERVICE_NAME, state)
+        details = (
+            f"<b>What's happening:</b> Our system can't reach the place where your important files are usually saved. This might be a problem with the online storage service or our server's internet connection.\n"
+            f"<b>Impact:</b> We don't know if your latest backups are safe. This means your data might be at risk if something goes wrong.\n\n"
+            "<b>What to do:</b> Please tell the technical team right away at tech@pinoyseoul.com that 'The backup system can't connect to storage'."
+        )
+        send_alert("Can't check if your files are backed up", severity="critical", title="CRITICAL: Backup System Offline", details=details)
         return None # Treat timeout as a failure to find info
     except subprocess.CalledProcessError as e:
         log.error(f"Failed to list files on rclone remote '{remote}': {e.stderr}")
+        mark_service_down(BACKUP_SERVICE_NAME, state)
         # This alert is sent immediately because it indicates a fundamental connectivity issue.
         details = (
             f"<b>What's happening:</b> Our system can't reach the place where your important files are usually saved. This might be a problem with the online storage service or our server's internet connection.\n"
@@ -82,10 +90,17 @@ def _get_latest_backup_info(remote: str) -> Optional[Dict[str, Any]]:
         return None
     except Exception as e:
         log.error(f"An unexpected error occurred while checking rclone remote: {e}")
+        mark_service_down(BACKUP_SERVICE_NAME, state)
+        details = (
+            f"<b>What's happening:</b> An unexpected error occurred while trying to check the backup system. This might be a temporary glitch or a more serious problem.\n"
+            f"<b>Impact:</b> We cannot verify if backups are safe.\n\n"
+            "<b>What to do:</b> Please contact the technical team at tech@pinoyseoul.com and report that the 'Backup Monitor Encountered an Unexpected Error'."
+        )
+        send_alert("Backup Monitor Error", severity="critical", title="CRITICAL: Backup Monitor Failed", details=details)
         return None
 
 
-def check_backup_age(config: Dict[str, Any], portainer_url: str) -> Dict[str, Any]:
+def check_backup_age(config: Dict[str, Any], portainer_url: str, state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Checks the age of the most recent backup and sends an alert if it's too old,
     following a "two-strikes" policy.
@@ -97,8 +112,7 @@ def check_backup_age(config: Dict[str, Any], portainer_url: str) -> Dict[str, An
     result = {'status': 'error', 'message': 'Check did not run'}
     portainer_button = [{"text": "Manage Server", "url": portainer_url}]
     
-    state = load_state()
-    backup_info = _get_latest_backup_info(remote)
+    backup_info = _get_latest_backup_info(remote, state)
 
     # --- Failure Condition ---
     if not backup_info or (datetime.datetime.now() - backup_info['mod_time']).total_seconds() / 3600 > max_age_hours:
@@ -141,5 +155,4 @@ def check_backup_age(config: Dict[str, Any], portainer_url: str) -> Dict[str, An
             send_alert("The backup system is now working correctly", severity="info", title="ALL CLEAR: Backup System Restored", details=details)
             mark_service_up(BACKUP_SERVICE_NAME, state) # This also resets the failure count implicitly
 
-    save_state(state)
     return result
