@@ -33,7 +33,7 @@ def get_listener_summary(config: Dict[str, Any], evening_quote: str = None) -> b
     try:
         log.info(f"Fetching daily listener report from AzuraCast for station '{station_id}'...")
         response = requests.get(api_url, headers=headers, timeout=30)
-        response.raise_for_status()
+        response.raise_for_for_status()
         data = response.json()
 
         unique_listeners = 0
@@ -42,7 +42,7 @@ def get_listener_summary(config: Dict[str, Any], evening_quote: str = None) -> b
             for metric in data.get('daily', {}).get('metrics', []):
                 # The metric name can be 'unique_listeners' or 'Unique Listeners', etc.
                 metric_name = metric.get('name', '').lower()
-                if 'unique' in metric_name:
+                if 'listeners' in metric_name:
                     # The data is for a single day, so we expect one value.
                     if metric.get('data') and len(metric['data']) > 0:
                         unique_listeners = metric['data'][0].get('y', 0)
