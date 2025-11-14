@@ -26,7 +26,7 @@ BACKUP_SERVICE_NAME = "Server Backup System"
 
 def _get_latest_backup_info(remote: str, state: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    Gets the latest backup file and its modification time from an rclone remote.
+    Gets the latest backup file, its modification time, and size from an rclone remote.
     """
     log.info(f"Checking for latest backup on rclone remote '{remote}'")
     try:
@@ -42,6 +42,7 @@ def _get_latest_backup_info(remote: str, state: Dict[str, Any]) -> Optional[Dict
 
         latest_backup = None
         latest_time = None
+        latest_size = -1
 
         for file_info in files:
             path = file_info.get("Path")
@@ -55,7 +56,7 @@ def _get_latest_backup_info(remote: str, state: Dict[str, Any]) -> Optional[Dict
 
                 if latest_time is None or mod_time > latest_time:
                     latest_time = mod_time
-                    latest_backup = path
+                    latest_backup = file_info # Keep the whole dict
             except (ValueError, KeyError) as e:
                 log.error(f"Could not parse file info from rclone output: '{file_info}'. Error: {e}")
                 continue
@@ -64,8 +65,12 @@ def _get_latest_backup_info(remote: str, state: Dict[str, Any]) -> Optional[Dict
             log.warning(f"No .tar.gz files found on rclone remote '{remote}'")
             return None
 
-        log.info(f"Latest backup found: '{latest_backup}' with modification time {latest_time}")
-        return {'path': latest_backup, 'mod_time': latest_time}
+        log.info(f"Latest backup found: '{latest_backup.get('Path')}' with modification time {latest_backup.get('ModTime')}")
+        return {
+            'path': latest_backup.get('Path'),
+            'mod_time': datetime.datetime.fromisoformat(latest_backup.get("ModTime").replace('Z', '+00:00')).replace(tzinfo=None),
+            'size': latest_backup.get('Size', -1)
+        }
 
     except subprocess.TimeoutExpired:
         log.error(f"Timeout expired while listing files on rclone remote '{remote}'. The storage provider may be slow or unresponsive.")
@@ -102,11 +107,16 @@ def _get_latest_backup_info(remote: str, state: Dict[str, Any]) -> Optional[Dict
 
 def check_backup_age(config: Dict[str, Any], portainer_url: str, state: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Checks the age of the most recent backup and sends an alert if it's too old,
-    following a "two-strikes" policy.
+    Checks the age and size of the most recent backup and sends an alert if it's
+    too old or too small. Implements a "two-strikes" policy for age-related failures.
     """
-    remote = config.get('rclone_remote', 'gdrive:PinoySeoul-Backups')
+    remote = config.get('rclone_remote')
+    if not remote:
+        log.error("rclone_remote is not configured in config.yml. Skipping backup check.")
+        return {'status': 'error', 'message': 'rclone_remote not configured.'}
+        
     max_age_hours = config.get('max_age_hours', 25)
+    min_size_mb = config.get('min_size_mb', 50)
     failure_threshold = config.get('failure_threshold', 2)
 
     result = {'status': 'error', 'message': 'Check did not run'}
@@ -114,8 +124,25 @@ def check_backup_age(config: Dict[str, Any], portainer_url: str, state: Dict[str
     
     backup_info = _get_latest_backup_info(remote, state)
 
-    # --- Failure Condition ---
-    if not backup_info or (datetime.datetime.now() - backup_info['mod_time']).total_seconds() / 3600 > max_age_hours:
+    # --- Size Check (Immediate Failure) ---
+    if backup_info and backup_info['size'] != -1 and (backup_info['size'] / (1024 * 1024)) < min_size_mb:
+        result['status'] = 'failed'
+        backup_size_mb = backup_info['size'] / (1024 * 1024)
+        result['message'] = f"Latest backup is only {backup_size_mb:.2f} MB, which is smaller than the {min_size_mb} MB minimum."
+        log.critical(result['message'])
+        
+        details = (
+            f"<b>What's happening:</b> The latest server backup completed, but the file is unusually small ({backup_size_mb:.2f} MB). This often means the backup process failed to include all the necessary data.\n"
+            f"<b>Impact:</b> This is a critical issue. The backup is likely incomplete or corrupt, putting you at high risk of data loss.\n\n"
+            "<b>What to do:</b> Please contact the technical team immediately at tech@pinoyseoul.com and report that the 'Server Backup is Too Small'."
+        )
+        send_alert("Server Backup Too Small", severity="critical", title="CRITICAL: Incomplete Backup Detected", details=details, extra_buttons=portainer_button)
+        # Mark as a failure but don't use the counter; this is an immediate alert
+        mark_service_down(BACKUP_SERVICE_NAME, state)
+        return result
+
+    # --- Age Check (Two-Strikes Failure) ---
+    if not backup_info or (datetime.datetime.utcnow() - backup_info['mod_time']).total_seconds() / 3600 > max_age_hours:
         increment_failure_count(BACKUP_SERVICE_NAME, state)
         failure_count = get_failure_count(BACKUP_SERVICE_NAME, state)
         
@@ -124,7 +151,7 @@ def check_backup_age(config: Dict[str, Any], portainer_url: str, state: Dict[str
         if not backup_info:
             result['message'] = "No recent backup file found."
         else:
-            backup_age_hours = (datetime.datetime.now() - backup_info['mod_time']).total_seconds() / 3600
+            backup_age_hours = (datetime.datetime.utcnow() - backup_info['mod_time']).total_seconds() / 3600
             result['message'] = f"The latest backup is {backup_age_hours:.1f} hours old, which is older than our {max_age_hours}-hour policy."
         
         log.warning(f"{result['message']} (Failure {failure_count} of {failure_threshold})")
@@ -143,9 +170,10 @@ def check_backup_age(config: Dict[str, Any], portainer_url: str, state: Dict[str
     
     # --- Success Condition ---
     else:
-        backup_age_hours = (datetime.datetime.now() - backup_info['mod_time']).total_seconds() / 3600
+        backup_age_hours = (datetime.datetime.utcnow() - backup_info['mod_time']).total_seconds() / 3600
+        backup_size_mb = backup_info['size'] / (1024 * 1024)
         result['status'] = 'success'
-        result['message'] = f"Latest backup is {backup_age_hours:.1f} hours old (within {max_age_hours}-hour limit)."
+        result['message'] = f"Latest backup is {backup_age_hours:.1f} hours old and {backup_size_mb:.2f} MB (within limits)."
         log.info(result['message'])
 
         # --- "All Clear" Logic ---

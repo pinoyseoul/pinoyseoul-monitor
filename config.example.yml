@@ -84,6 +84,8 @@ backup:
   log_path: "/home/pinoyseoul/backups/rclone_backup.log"
   # The directory where local backup archives are stored (for potential future checks).
   backup_dir: "/home/pinoyseoul/backups"
+  # The rclone remote and path to check for backups (e.g., "gdrive:MyBackups").
+  rclone_remote: "gdrive:PinoySeoul-Backups"
   # The minimum acceptable size for a backup in Megabytes (MB).
   # If a backup is smaller than this, a CRITICAL alert will be sent.
   min_size_mb: 50

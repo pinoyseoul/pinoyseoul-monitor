@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.2.1 (2025-11-14)
+
+### Improved
+- **Backup Size Verification:** The backup monitor now verifies that the latest backup meets the minimum size threshold (`min_size_mb`) defined in `config.yml`. This prevents silent failures where a backup job runs but produces an incomplete or empty file.
+
+### Fixed
+- **Backup Age Calculation:** Fixed a critical timezone bug in the backup monitor where backup age was calculated using inconsistent timezones (naive local time vs. naive UTC time). The logic now correctly uses UTC for all comparisons, ensuring accurate results and preventing false alarms.
+- **Explicit Backup Configuration:** The backup monitor now requires the `rclone_remote` to be set in `config.yml` and no longer uses a hardcoded default. An example and comment have been added to `config.example.yml` to reflect this.
+
+### Refactor
+- **Code Cleanup:** Removed the obsolete `run_summary.sh` wrapper script to align the codebase with the documented cron setup and eliminate potential confusion.
+
 ## v1.2.0 (2025-11-13)
 
 ### Fixed
