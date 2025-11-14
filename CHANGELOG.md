@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.2 (2025-11-14)
+
+### Fixed
+- **Nightly Summary Execution:** The scheduled nightly listener summary now correctly uses the centralized `schedule.listener_summary_time` configuration, fixing a bug that caused it to fail silently.
+
+### Refactor
+- **Configuration Consistency:** Consolidated all summary schedules into the top-level `schedule` block in `config.example.yml` for better consistency and easier management. The listener summary time is now configured via `listener_summary_time`.
+
 ## v1.2.1 (2025-11-14)
 
 ### Improved

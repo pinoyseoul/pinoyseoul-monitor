@@ -246,7 +246,7 @@ def main():
         azuracast_config = config.get('azuracast', {})
         if azuracast_config.get('enabled', False):
             tz_str = config.get('general', {}).get('timezone', 'UTC')
-            scheduled_time_str = azuracast_config.get('daily_summary_time', '21:00')
+            scheduled_time_str = config.get('schedule', {}).get('listener_summary_time', '21:00')
             
             try:
                 timezone = pytz.timezone(tz_str)

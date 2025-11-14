@@ -32,6 +32,8 @@ schedule:
   # What time to send the daily summary report.
   # Use 24-hour format. Timezone is handled by the server (e.g., set to Manila time).
   daily_summary_time: "09:00"
+  # What time to send the AzuraCast daily listener summary report.
+  listener_summary_time: "21:00"
 
 # -----------------------------------------------------------------------------
 # Docker Monitoring
@@ -105,8 +107,6 @@ azuracast:
   station_id: 1
   # The user-friendly name of your station for alerts.
   station_name: "Pinoy Seoul Radio"
-  # The time to send the daily listener summary report (24-hour format).
-  daily_summary_time: "21:00"
 
 # -----------------------------------------------------------------------------
 # Nginx Proxy Manager Integration
