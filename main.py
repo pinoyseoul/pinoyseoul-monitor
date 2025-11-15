@@ -95,11 +95,7 @@ def run_summary(config: dict, state: dict):
     nginx_proxy_manager_url = config.get('nginx_proxy_manager', {}).get('url')
 
     # Run all checks and collect results
-    docker_results = check_docker_health(
-        name_map=docker_config.get('container_name_mapping', {}),
-        portainer_url=portainer_url,
-        state=state
-    )
+    docker_results = check_docker_health(config, state)
     ssl_results = check_ssl_certs(
         domains=ssl_config.get('domains', []),
         alert_days=ssl_config.get('alert_days', {}),
@@ -158,11 +154,7 @@ def run_checks(check_name: str, config: dict, state: dict) -> bool:
     if check_name in ['docker', 'all']:
         docker_config = config.get('docker', {})
         if docker_config.get('enabled', False):
-            results = check_docker_health(
-                name_map=docker_config.get('container_name_mapping', {}),
-                portainer_url=portainer_url,
-                state=state
-            )
+            results = check_docker_health(config, state)
             if results['status'] != 'healthy':
                 overall_healthy = False
         else:

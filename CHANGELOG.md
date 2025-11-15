@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.3 (2025-11-15)
+
+### Added
+- **Maintenance Window:** Added a new `maintenance` configuration to suppress Docker health alerts during a scheduled daily window, preventing false "auto-recovery" notifications during planned restarts.
+
+### Fixed
+- **Listener Summary:** Fixed a typo (`raise_for_for_status` -> `raise_for_status`) in `monitors/azuracast_check.py` that caused the 9pm listener summary to fail.
+- **Backup Monitor Configuration:** Correctly configured the `rclone_remote` path in `config.yml` to ensure the backup check can run successfully.
+
 ## v1.2.2 (2025-11-14)
 
 ### Fixed

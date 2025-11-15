@@ -10,6 +10,19 @@ general:
   timezone: "Asia/Manila"
 
 # -----------------------------------------------------------------------------
+# Maintenance Window
+# -----------------------------------------------------------------------------
+maintenance:
+  # Enable this to suppress certain non-critical alerts during a specific time.
+  # This is useful for preventing "auto-recovery" notices during scheduled daily
+  # server restarts or backup windows.
+  enabled: true
+  # The time to start the maintenance window (24-hour format).
+  start_time: "02:00"
+  # The time to end the maintenance window (24-hour format).
+  end_time: "02:15"
+
+# -----------------------------------------------------------------------------
 # Google Chat Integration
 # -----------------------------------------------------------------------------
 google_chat:

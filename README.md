@@ -154,6 +154,7 @@ All settings are managed in `config.yml`.
 ### Editing `config.yml`
 This file is organized into sections:
 - **`general`**: Configure the application's local timezone for accurate scheduling.
+- **`maintenance`**: Configure a daily window to suppress alerts during planned restarts or maintenance.
 - **`docker`**: Enable/disable the Docker check and map your technical container names to friendly names.
 - **`ssl`**: Enable/disable the SSL check and list all the domains you want to monitor.
 - **`backup`**: Enable/disable the backup check and provide the correct `rclone_remote` and `max_age_hours`.

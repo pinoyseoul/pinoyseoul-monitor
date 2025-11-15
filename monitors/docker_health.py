@@ -6,20 +6,58 @@ Includes auto-remediation for stopped containers and stateful 'resolved' alerts.
 """
 
 import docker
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 import logging
 from typing import Dict, Any
+import pytz
 
 # Assuming this module is run in an environment where utils can be imported
 from utils.google_chat import send_alert
-from utils.state_manager import load_state, save_state, is_service_down, mark_service_down, mark_service_up
+from utils.state_manager import is_service_down, mark_service_down, mark_service_up
 
 # Set up a logger for this module
 log = logging.getLogger(__name__)
 
+# --- Helper Function ---
+
+def _is_in_maintenance_window(config: Dict[str, Any]) -> bool:
+    """
+    Checks if the current time is within the configured maintenance window.
+    """
+    maintenance_config = config.get('maintenance', {})
+    if not maintenance_config.get('enabled', False):
+        return False
+
+    try:
+        tz_str = config.get('general', {}).get('timezone', 'UTC')
+        timezone = pytz.timezone(tz_str)
+        now = datetime.now(pytz.utc).astimezone(timezone)
+
+        start_time_str = maintenance_config.get('start_time', '02:00')
+        end_time_str = maintenance_config.get('end_time', '02:15')
+
+        start_hour, start_minute = map(int, start_time_str.split(':'))
+        end_hour, end_minute = map(int, end_time_str.split(':'))
+
+        start_time = now.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
+        end_time = now.replace(hour=end_hour, minute=end_minute, second=0, microsecond=0)
+
+        # Handle overnight maintenance windows
+        if end_time < start_time:
+            # If current time is after start OR before end, it's in the window
+            return now >= start_time or now < end_time
+        else:
+            # Standard same-day window
+            return start_time <= now < end_time
+            
+    except (pytz.UnknownTimeZoneError, ValueError) as e:
+        log.error(f"Could not parse maintenance window due to a configuration error: {e}")
+        return False
+
+
 # --- Main Function ---
 
-def check_docker_health(name_map: Dict[str, str], portainer_url: str, state: Dict[str, Any]) -> Dict[str, Any]:
+def check_docker_health(config: Dict[str, Any], state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Connects to Docker, checks all containers, attempts to auto-fix stopped
     containers, sends alerts for issues, and sends 'resolved' messages.
@@ -31,6 +69,10 @@ def check_docker_health(name_map: Dict[str, str], portainer_url: str, state: Dic
         'issues': [],
         'status': 'healthy'
     }
+    
+    docker_config = config.get('docker', {})
+    name_map = docker_config.get('container_name_mapping', {})
+    portainer_url = config.get('portainer', {}).get('url')
     portainer_button = [{"text": "Manage Server", "url": portainer_url}]
     
     try:
@@ -53,6 +95,11 @@ def check_docker_health(name_map: Dict[str, str], portainer_url: str, state: Dic
 
     summary['total_containers'] = len(containers)
     
+    # Check if we are in a maintenance window before iterating
+    in_maintenance = _is_in_maintenance_window(config)
+    if in_maintenance:
+        log.info("Currently in maintenance window. Auto-remediation and alerts for stopped containers are suppressed.")
+
     for container in containers:
         status = container.status
         name = container.name
@@ -75,6 +122,12 @@ def check_docker_health(name_map: Dict[str, str], portainer_url: str, state: Dic
 
         elif status in ['exited', 'dead']:
             summary['stopped'] += 1
+            
+            # If in maintenance, just log it and move on
+            if in_maintenance:
+                log.info(f"Container '{name}' is stopped, but skipping alerts and auto-fix due to maintenance window.")
+                continue
+
             log.warning(f"Container '{name}' is stopped. Attempting to restart...")
             mark_service_down(name, state)
             
@@ -143,15 +196,22 @@ if __name__ == '__main__':
     print("This will connect to your local Docker daemon and may send alerts.")
     
     # In a real test, this map would come from a loaded config file.
-    mock_name_map = {
-        "kimai": "Kimai Time Tracking",
-        "portainer": "Portainer UI"
+    mock_config = {
+        "general": {"timezone": "Asia/Manila"},
+        "maintenance": {"enabled": False},
+        "docker": {
+            "container_name_mapping": {
+                "kimai": "Kimai Time Tracking",
+                "portainer": "Portainer UI"
+            }
+        },
+        "portainer": {"url": ""}
     }
     
     # Mock state for testing purposes
     mock_state = {'down_services': [], 'failure_counts': {}}
     
-    result = check_docker_health(name_map=mock_name_map, portainer_url="", state=mock_state)
+    result = check_docker_health(config=mock_config, state=mock_state)
     
     print("\n--- Check Complete ---")
     print(f"  Overall Status: {result['status']}")

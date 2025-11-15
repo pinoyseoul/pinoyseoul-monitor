@@ -33,7 +33,7 @@ def get_listener_summary(config: Dict[str, Any], evening_quote: str = None) -> b
     try:
         log.info(f"Fetching daily listener report from AzuraCast for station '{station_id}'...")
         response = requests.get(api_url, headers=headers, timeout=30)
-        response.raise_for_for_status()
+        response.raise_for_status()
         data = response.json()
 
         unique_listeners = 0
