@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.0.0 (2025-11-15)
+
+### BREAKING CHANGE
+- **Architectural Overhaul:** The monitor has been refactored from a cron-based application to a single, long-running service that handles its own scheduling internally. The old method of using `cron` to call `main.py` with different arguments is now obsolete. The application should now be run as a service (e.g., using `systemd`).
+
+### Added
+- **Centralized Scheduler:** Implemented a new data-driven scheduler using the `schedule` library. All jobs are now defined and configured in `config.yml` and managed by a single `main.py` process.
+- **Configurable Recovery Alerts:** Added an `alert_on_recovery` flag to the Docker monitor configuration, allowing users to disable "ALL CLEAR" and "Auto-Recovery" notifications to reduce noise.
+
+### Changed
+- **Unified Configuration:** Refactored `config.yml` to have a unified and modular structure under a single `monitors` key. Each monitor now has a consistent set of options for `enabled`, `schedule_minutes`, `run_at_time`, and `options`.
+- **Improved Monitor Robustness:**
+  - The AzuraCast monitor now sends a failure alert if it cannot parse the API response, instead of failing silently with "0 listeners".
+  - All monitors now have more robust error handling and consistent configuration access.
+- **Simplified Usage:** Removed all old command-line arguments (`--check`, `--summary`, etc.) from `main.py`. The application is now started with a simple `python main.py`.
+- **Updated Documentation:** The `README.md` has been completely updated to reflect the new service-based architecture, including instructions for setting up a `systemd` service.
+
 ## v1.2.3 (2025-11-15)
 
 ### Added

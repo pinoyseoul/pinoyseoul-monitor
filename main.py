@@ -3,33 +3,30 @@
 """
 Main entry point for the PinoySeoul Monitoring and Alerting Service.
 
-This script provides a command-line interface to run various system health
-checks, send summary reports, and test alert configurations.
+This script runs as a long-running service, scheduling and executing
+monitoring jobs based on a central configuration file.
 """
 
-import argparse
-import os
 import sys
+import time
 import yaml
 import logging
 from dotenv import load_dotenv
-from datetime import datetime
-import pytz
 
 # --- Module Imports ---
-# We wrap imports in a try/except block to provide a graceful exit
-# if dependencies are not installed.
 try:
+    import schedule
     from utils.logger import setup_logging
-    from utils.google_chat import send_daily_summary, test_webhook, send_alert
+    from utils.google_chat import send_daily_summary, test_webhook
     from utils.quotes import get_random_quote
     from monitors.docker_health import check_docker_health
     from monitors.ssl_check import check_ssl_certs
     from monitors.backup_check import check_backup_age
     from monitors.azuracast_check import get_listener_summary
+    from utils.state_manager import load_state, save_state
 except ImportError as e:
     print(f"FATAL ERROR: A required module is missing: {e}", file=sys.stderr)
-    print("Please run 'bash scripts/setup.sh' to install dependencies.", file=sys.stderr)
+    print("Please run 'pip install -r requirements.txt' to install dependencies.", file=sys.stderr)
     sys.exit(1)
 
 # --- Global Variables ---
@@ -38,44 +35,33 @@ log = logging.getLogger(__name__)
 # --- Core Functions ---
 
 def load_config(config_path: str = 'config.yml') -> dict:
-    """
-    Loads the YAML configuration file and substitutes environment variables.
-
-    Args:
-        config_path (str): The path to the configuration file.
-
-    Returns:
-        A dictionary containing the loaded and processed configuration.
-    
-    Raises:
-        SystemExit: If the config file is not found or the webhook URL is missing.
-    """
+    """Loads the YAML configuration file and substitutes environment variables."""
     log.info(f"Loading configuration from '{config_path}'...")
     try:
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
     except FileNotFoundError:
         log.critical(f"Configuration file not found at '{config_path}'.")
-        print(f"FATAL ERROR: Configuration file not found at '{config_path}'.", file=sys.stderr)
-        print("Please copy 'config.example.yml' to 'config.yml' and configure it.", file=sys.stderr)
         sys.exit(1)
 
-    # Load .env file for secrets
     load_dotenv()
+    # Recursively substitute environment variables
+    def substitute_env_vars(item):
+        if isinstance(item, dict):
+            return {k: substitute_env_vars(v) for k, v in item.items()}
+        elif isinstance(item, list):
+            return [substitute_env_vars(i) for i in item]
+        elif isinstance(item, str) and item.startswith('${') and item.endswith('}'):
+            var_name = item[2:-1]
+            env_value = os.getenv(var_name)
+            if not env_value:
+                log.critical(f"Environment variable '{var_name}' is not set, but is required in config.")
+                sys.exit(1)
+            return env_value
+        return item
 
-    # Substitute environment variables in the config (e.g., for webhook_url)
-    # This is a simple substitution for "${VAR_NAME}" format
-    for section, settings in config.items():
-        for key, value in settings.items():
-            if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
-                var_name = value[2:-1]
-                env_value = os.getenv(var_name)
-                if not env_value:
-                    log.critical(f"Environment variable '{var_name}' is not set, but is required for config key '{key}'.")
-                    sys.exit(1)
-                config[section][key] = env_value
+    config = substitute_env_vars(config)
     
-    # Final validation
     if not config.get('google_chat', {}).get('webhook_url'):
         log.critical("GOOGLE_CHAT_WEBHOOK_URL is missing from config and environment.")
         sys.exit(1)
@@ -83,221 +69,124 @@ def load_config(config_path: str = 'config.yml') -> dict:
     log.info("Configuration loaded successfully.")
     return config
 
-def run_summary(config: dict, state: dict):
-    """Runs all checks and sends a single daily summary report."""
-    log.info("--- Starting Daily Summary Run ---")
+# --- Job Functions ---
+
+def run_monitor_job(monitor_name: str, monitor_func, config: dict):
+    """A wrapper to run a monitor, handle exceptions, and manage state."""
+    log.info(f"--- Running Job: {monitor_name.upper()} ---")
+    state = load_state()
+    monitor_config = config['monitors'][monitor_name]
     
-    # Get configs for each module
-    docker_config = config.get('docker', {})
-    ssl_config = config.get('ssl', {})
-    backup_config = config.get('backup', {})
-    portainer_url = config.get('portainer', {}).get('url')
-    nginx_proxy_manager_url = config.get('nginx_proxy_manager', {}).get('url')
+    try:
+        # Pass the specific monitor's config and the global integrations to the check
+        monitor_func(monitor_config, config.get('integrations', {}), state)
+    except Exception as e:
+        log.error(f"!!! Job '{monitor_name.upper()}' failed with an unexpected error: {e}", exc_info=True)
+    finally:
+        save_state(state)
+        log.info(f"--- Finished Job: {monitor_name.upper()} ---")
 
-    # Run all checks and collect results
-    docker_results = check_docker_health(config, state)
-    ssl_results = check_ssl_certs(
-        domains=ssl_config.get('domains', []),
-        alert_days=ssl_config.get('alert_days', {}),
-        portainer_url=portainer_url,
-        nginx_proxy_manager_url=nginx_proxy_manager_url,
-        state=state
-    )
-    backup_results = check_backup_age(backup_config, portainer_url=portainer_url, state=state)
+def run_summary_job(summary_name: str, summary_func, config: dict):
+    """A wrapper to run a summary, handle exceptions, and manage state."""
+    log.info(f"--- Running Summary: {summary_name.upper()} ---")
+    state = load_state()
+    monitor_config = config['monitors'][summary_name]
 
-    # Format Docker status for summary
+    try:
+        if summary_name == 'daily_summary':
+            # The daily summary needs info from all other checks
+            summary_func(config, state)
+        else:
+            # Other summaries are self-contained
+            summary_func(monitor_config, config.get('integrations', {}), state)
+    except Exception as e:
+        log.error(f"!!! Summary '{summary_name.upper()}' failed with an unexpected error: {e}", exc_info=True)
+
+# --- Main Execution ---
+
+def main():
+    """The main function to schedule and run all monitoring jobs."""
+    config = load_config()
+    setup_logging(config.get('logging', {}))
+
+    log.info("=================================================")
+    log.info("  PinoySeoul Monitoring Service - Starting Up")
+    log.info("=================================================")
+
+    # Map monitor names from config to their actual functions
+    JOB_MAP = {
+        "docker": check_docker_health,
+        "ssl": check_ssl_certs,
+        "backup": check_backup_age,
+        "listener_summary": get_listener_summary,
+        "daily_summary": run_daily_summary_job_logic # A special function for the main summary
+    }
+
+    # --- Schedule all jobs based on config ---
+    for name, monitor_config in config.get('monitors', {}).items():
+        if not monitor_config.get('enabled', False):
+            log.info(f"Skipping disabled monitor: '{name}'")
+            continue
+
+        if name not in JOB_MAP:
+            log.warning(f"Unknown monitor type '{name}' found in config. Skipping.")
+            continue
+
+        job_func = JOB_MAP[name]
+        
+        # Schedule jobs that run at a specific time
+        if 'run_at_time' in monitor_config:
+            run_time = monitor_config['run_at_time']
+            log.info(f"Scheduling '{name}' to run daily at {run_time}.")
+            schedule.every().day.at(run_time).do(run_monitor_job, name, job_func, config)
+        
+        # Schedule jobs that run at a frequency
+        elif 'schedule_minutes' in monitor_config:
+            minutes = monitor_config['schedule_minutes']
+            log.info(f"Scheduling '{name}' to run every {minutes} minutes.")
+            schedule.every(minutes).minutes.do(run_monitor_job, name, job_func, config)
+
+    log.info("--- All jobs scheduled. Starting monitoring loop. ---")
+    
+    # Run the scheduler loop
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+def run_daily_summary_job_logic(config: dict, state: dict):
+    """The specific logic for creating and sending the daily summary report."""
+    log.info("--- Composing Daily Summary Report ---")
+    
+    # For the summary, we need to run the checks to get fresh data
+    # Note: This does NOT trigger alerts, it just gets the status
+    docker_results = check_docker_health(config['monitors']['docker'], config.get('integrations', {}), state, send_alerts=False)
+    ssl_results = check_ssl_certs(config['monitors']['ssl'], config.get('integrations', {}), state, send_alerts=False)
+    backup_results = check_backup_age(config['monitors']['backup'], config.get('integrations', {}), state, send_alerts=False)
+
+    # Format Docker status
     docker_status = f"✅ {docker_results['running']}/{docker_results['total_containers']} containers running"
     if docker_results['status'] != 'healthy':
         docker_status = f"🔴 {len(docker_results['issues'])} issues detected"
 
-    # Format SSL status for summary
+    # Format SSL status
     expiring_soon = [res for res in ssl_results if res['status'] in ['warning', 'critical']]
     ssl_status = f"✅ All {len(ssl_results)} certs valid"
     if expiring_soon:
         ssl_status = f"🟡 {len(expiring_soon)} certs require attention"
 
-    # Format backup status for summary
+    # Format backup status
     backup_status = f"✅ {backup_results.get('message', 'Status unknown')}"
     if backup_results['status'] != 'success':
         backup_status = f"🔴 {backup_results.get('message', 'Backup failed')}"
 
-    # Mock data for services not yet implemented in detail
     services_status = {
         "Radio": "✅ Online", "Website": "✅ Online", "Kimai": "✅ Online",
         "Wekan": "✅ Online", "DocuSeal": "✅ Online", "Dolibarr": "✅ Online",
     }
-
-    # Get a random morning quote
     morning_quote = get_random_quote('morning')
 
     send_daily_summary(services_status, backup_status, ssl_status, morning_quote)
     log.info("--- Daily Summary Sent ---")
-
-def run_checks(check_name: str, config: dict, state: dict) -> bool:
-    """
-    Runs a specific check or all checks.
-
-    Args:
-        check_name (str): The name of the check to run ('docker', 'ssl', 'backup', 'all').
-        config (dict): The application configuration.
-        state (dict): The current state of the monitor.
-
-    Returns:
-        bool: True if all checks passed, False if any issues were found.
-    """
-    log.info(f"--- Running Check: {check_name.upper()} ---")
-    overall_healthy = True
-
-    portainer_url = config.get('portainer', {}).get('url')
-    nginx_proxy_manager_url = config.get('nginx_proxy_manager', {}).get('url')
-
-    if check_name in ['docker', 'all']:
-        docker_config = config.get('docker', {})
-        if docker_config.get('enabled', False):
-            results = check_docker_health(config, state)
-            if results['status'] != 'healthy':
-                overall_healthy = False
-        else:
-            log.info("Docker check skipped (disabled in config).")
-
-    if check_name in ['ssl', 'all']:
-        ssl_config = config.get('ssl', {})
-        if ssl_config.get('enabled', False):
-            results = check_ssl_certs(
-                domains=ssl_config.get('domains', []),
-                alert_days=ssl_config.get('alert_days', {}),
-                portainer_url=portainer_url,
-                nginx_proxy_manager_url=nginx_proxy_manager_url,
-                state=state
-            )
-            if any(r['status'] != 'valid' for r in results):
-                overall_healthy = False
-        else:
-            log.info("SSL check skipped (disabled in config).")
-
-    if check_name in ['backup', 'all']:
-        if config.get('backup', {}).get('enabled', False):
-            results = check_backup_age(config.get('backup', {}), portainer_url=portainer_url, state=state)
-            if results['status'] != 'success':
-                overall_healthy = False
-        else:
-            log.info("Backup check skipped (disabled in config).")
-            
-    log.info(f"--- Check '{check_name.upper()}' Complete. Overall Healthy: {overall_healthy} ---")
-    return overall_healthy
-
-# --- Main Execution ---
-
-def main():
-    """The main function and entry point of the application."""
-    parser = argparse.ArgumentParser(description="PinoySeoul Monitoring and Alerting Service.")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--check', choices=['docker', 'ssl', 'backup', 'all'], help="Run a specific health check.")
-    group.add_argument('--summary', action='store_true', help="Run all checks and send the daily summary report.")
-    group.add_argument('--scheduled-summary', action='store_true', help="Run the daily summary (intended for cron jobs).")
-    group.add_argument('--scheduled-listener-summary', action='store_true', help="Send the AzuraCast daily listener summary (intended for cron jobs).")
-    group.add_argument('--listener-summary', action='store_true', help="Send the AzuraCast daily listener summary.")
-    group.add_argument('--test', action='store_true', help="Send a test alert to the configured webhook.")
-    
-    args = parser.parse_args()
-
-    try:
-        config = load_config()
-        setup_logging(config.get('logging', {}))
-    except SystemExit as e:
-        # load_config handles its own error printing
-        sys.exit(e.code)
-    except Exception as e:
-        print(f"FATAL ERROR during initialization: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Load state at the beginning of the main function
-    from utils.state_manager import load_state, save_state
-    state = load_state()
-
-    exit_code = 0
-    is_healthy = True # Assume healthy unless a check fails
-
-    if args.test:
-        log.info("Running webhook test...")
-        test_webhook()
-        print("Test alert sent. Please check your Google Chat room.")
-        
-    elif args.listener_summary:
-        log.info("Running AzuraCast listener summary...")
-        azuracast_config = config.get('azuracast', {})
-        if azuracast_config.get('enabled', False):
-            # Get a random evening quote
-            evening_quote = get_random_quote('evening')
-            get_listener_summary(azuracast_config, evening_quote)
-        else:
-            log.warning("Azuracast check skipped (disabled in config).")
-
-    elif args.scheduled_listener_summary:
-        log.info("Running scheduled AzuraCast listener summary...")
-        azuracast_config = config.get('azuracast', {})
-        if azuracast_config.get('enabled', False):
-            tz_str = config.get('general', {}).get('timezone', 'UTC')
-            scheduled_time_str = config.get('schedule', {}).get('listener_summary_time', '21:00')
-            
-            try:
-                timezone = pytz.timezone(tz_str)
-                now = datetime.now(pytz.utc).astimezone(timezone)
-                
-                summary_hour, summary_minute = map(int, scheduled_time_str.split(':'))
-                
-                if now.hour == summary_hour and now.minute >= summary_minute and now.minute < summary_minute + 5:
-                    log.info(f"Current time {now.strftime('%H:%M')} matches scheduled listener summary time {scheduled_time_str}. Running listener summary.")
-                    evening_quote = get_random_quote('evening')
-                    get_listener_summary(azuracast_config, evening_quote)
-                else:
-                    log.info(f"Current time {now.strftime('%H:%M')} in {tz_str} is not the scheduled listener summary time ({scheduled_time_str}). Skipping listener summary.")
-            except pytz.UnknownTimeZoneError:
-                log.error(f"Invalid timezone '{tz_str}' in config. Skipping scheduled listener summary.")
-                exit_code = 1
-            except Exception as e:
-                log.error(f"An error occurred during scheduled listener summary check: {e}")
-                exit_code = 1
-        else:
-            log.warning("Azuracast check skipped (disabled in config).")
-
-    elif args.summary:
-        run_summary(config, state)
-
-    elif args.scheduled_summary:
-        log.info("Running scheduled daily summary...")
-        tz_str = config.get('general', {}).get('timezone', 'UTC')
-        scheduled_time_str = config.get('schedule', {}).get('daily_summary_time', '09:00')
-        
-        try:
-            timezone = pytz.timezone(tz_str)
-            now = datetime.now(pytz.utc).astimezone(timezone)
-            
-            summary_hour, summary_minute = map(int, scheduled_time_str.split(':'))
-            
-            if now.hour == summary_hour and now.minute >= summary_minute and now.minute < summary_minute + 5:
-                log.info(f"Current time {now.strftime('%H:%M')} matches scheduled summary time {scheduled_time_str}. Running summary.")
-                run_summary(config, state)
-            else:
-                log.info(f"Current time {now.strftime('%H:%M')} in {tz_str} is not the scheduled summary time ({scheduled_time_str}). Skipping.")
-        except pytz.UnknownTimeZoneError:
-            log.error(f"Invalid timezone '{tz_str}' in config. Skipping scheduled summary.")
-            exit_code = 1
-        except Exception as e:
-            log.error(f"An error occurred during scheduled summary check: {e}")
-            exit_code = 1
-        
-    elif args.check:
-        results_healthy = run_checks(args.check, config, state)
-        if not results_healthy:
-            log.warning(f"Check '{args.check}' completed with issues.")
-            exit_code = 1
-        else:
-            log.info(f"Check '{args.check}' completed successfully.")
-
-    # Save state at the end of the main function
-    save_state(state)
-    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

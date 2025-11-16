@@ -86,6 +86,7 @@ Every morning, the service sends a single, clean summary report to Google Chat, 
 
 ## 3. Tech Stack
 - **Core Language:** Python 3.8+
+- **Scheduling:** Schedule
 - **Container Engine:** Docker & Docker SDK for Python
 - **Alerting Platform:** Google Chat Webhooks
 - **Main Libraries:**
@@ -165,46 +166,20 @@ This file is organized into sections:
 
 ## 7. Usage
 
-All commands should be run from the project's root directory with the virtual environment activated (`source .venv/bin/activate`).
+The monitor is now designed to run as a single, continuous service. All scheduling is handled internally based on your `config.yml` file.
 
-### Running Manual Checks
-You can trigger any check manually. This is great for testing or getting an instant status update.
-
-Below is an example of the terminal output when running a manual check.
-![Example of terminal output](docs/screenshots/terminal-output.png)
-</br>
-*Caption: Running a manual check provides immediate feedback on the console.*
-
+### Running the Monitor
+To run the monitor, simply execute `main.py` from the project's root directory with the virtual environment activated:
 ```bash
-# Check the status of all Docker containers
-python main.py --check docker
-
-# Check the status of all SSL certificates
-python main.py --check ssl
-
-# Check the status of the last backup
-python main.py --check backup
-
-# Run all checks at once
-python main.py --check all
+source .venv/bin/activate
+python main.py
 ```
-
-### Sending a Daily Summary
-To manually trigger the daily summary report:
-```bash
-python main.py --summary
-```
-
-### Sending the Listener Report
-To manually trigger the AzuraCast daily listener report:
-```bash
-python main.py --listener-summary
-```
+The application will start, schedule all enabled monitors, and print a summary of the scheduled jobs to the console. It will then run forever, executing the jobs at their configured times.
 
 ### Testing the Webhook
-This command sends a simple test message to your configured webhook.
+You can still test your Google Chat webhook to ensure it's configured correctly. A test script is provided for this purpose.
 ```bash
-python main.py --test
+python scripts/test_webhook.py
 ```
 
 ### Reading Logs
@@ -215,40 +190,58 @@ tail -f logs/monitor.log
 
 ---
 
-## 8. Setting up Automation (Cron)
+## 8. Setting up Automation (Running as a Service)
 
-To make the monitor truly automated, schedule the scripts to run using `cron`.
+To make the monitor truly automated, you should run it as a background service that automatically restarts if the server reboots. The recommended way to do this is with `systemd`.
 
-1. Open your user's crontab file for editing:
-   ```bash
-   crontab -e
-   ```
-2. Add lines for each check you want to automate.
-
-### Example Crontab Entries
-**IMPORTANT:** The `TZ=Asia/Manila` prefix is crucial if your server's system time is not set to your local timezone. It ensures the jobs run on the correct schedule.
-
-```cron
-# PinoySeoul Monitor Schedule
-# -----------------------------------------------------------------------------
-# Note: All jobs are set to run on the 'Asia/Manila' timezone.
-
-# Check Docker container health every 5 minutes.
-TZ=Asia/Manila */5 * * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --check docker >> logs/cron.log 2>&1
-
-# Check SSL certificates once a day at 8:00 AM.
-TZ=Asia/Manila 0 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --check ssl >> logs/cron.log 2>&1
-
-# Check backup status once a day at 8:05 AM.
-TZ=Asia/Manila 5 8 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --check backup >> logs/cron.log 2>&1
-
-# Send the daily summary report every day at 9:00 AM.
-TZ=Asia/Manila 0 9 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --scheduled-summary >> logs/cron.log 2>&1
-
-# Send the AzuraCast daily listener summary report every day at 9:00 PM.
-TZ=Asia/Manila 0 21 * * * cd /home/pinoyseoul/pinoyseoul-monitor && .venv/bin/python main.py --scheduled-listener-summary >> logs/cron.log 2>&1
+### Step 1: Create a `systemd` Service File
+Create a new service file:
+```bash
+sudo nano /etc/systemd/system/monitor.service
 ```
-**Note:** The main backup job itself should be scheduled in the system-wide crontab (`/etc/crontab`) to run as `root`.
+Paste the following content into the file. **Make sure to replace `/home/pinoyseoul/pinoyseoul-monitor` with the actual path to the project directory.**
+
+```ini
+[Unit]
+Description=PinoySeoul Monitoring Service
+After=network.target
+
+[Service]
+User=pinoyseoul
+Group=pinoyseoul
+WorkingDirectory=/home/pinoyseoul/pinoyseoul-monitor
+ExecStart=/home/pinoyseoul/pinoyseoul-monitor/.venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Step 2: Enable and Start the Service
+1.  Reload the `systemd` daemon to recognize the new service:
+    ```bash
+    sudo systemctl daemon-reload
+    ```
+2.  Enable the service to start on boot:
+    ```bash
+    sudo systemctl enable monitor.service
+    ```
+3.  Start the service immediately:
+    ```bash
+    sudo systemctl start monitor.service
+    ```
+
+### Step 3: Check the Service Status
+You can check the status of the service at any time with:
+```bash
+sudo systemctl status monitor.service
+```
+To view the logs generated by the service, you can use `journalctl`:
+```bash
+sudo journalctl -u monitor.service -f
+```
+This setup replaces the old, complex `cron` configuration with a modern, robust, and manageable solution.
 
 ---
 
